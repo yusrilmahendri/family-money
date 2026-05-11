@@ -1,19 +1,23 @@
 @extends('welcome')
 
 @section('content')
+    @if($over_budget ?? false)
+        <div class="alert alert-danger" style="margin: 15px 20px 0;">
+            Pengeluaran bulan ini melebihi plafon anggaran. Kurangi transaksi atau naikkan anggaran.
+        </div>
+    @endif
+
     <div class="row mt-5 justify-content-center" style="margin-top: 25px;">
         <div class="col-lg-4 col-md-6 col-sm-12" style="margin-left: 20px; margin-right: 20px; margin-top: 20px; width: calc(100% - 40px);">
             <div class="card shadow-lg sm-6 md-8 lg-12" style="border: 2px solid #f0f0f0; box-shadow: 0px 2px 8px rgba(0,0,0,0.05); border-radius: 12px; ">
                 <div class="card-body text-md-left" style="border: none; margin-left: 15px;">
-                    
-                    <h5 class="card-title text-muted">Total Sisa Saldo</h5>
-
+                    <h5 class="card-title text-muted">Plafon anggaran (bulan ini)</h5>
                     <h2 class="font-weight-bold text-primary">
-                        Rp {{ number_format($total_saldo, 0, ',', '.') }}
+                        Rp {{ number_format($budget_cap, 0, ',', '.') }}
                     </h2>
                     <p class="mb-0 text-muted">
-                        Update terakhir:  
-                        {{ $updated_saldo ? \Carbon\Carbon::parse($updated_saldo->periode)->format('d M Y') : '-' }}
+                        Terpakai: <strong>Rp {{ number_format($spent_this_month, 0, ',', '.') }}</strong><br>
+                        Sisa: <strong>Rp {{ number_format($remaining_budget, 0, ',', '.') }}</strong>
                     </p>
                 </div>
             </div>
@@ -36,9 +40,10 @@
             <table class="table table-bordered table-hover" id="dataTable">
                 <thead>
                     <tr>
-                        <th>Saldo</th>
+                        <th>Jumlah</th>
                         <th>Keterangan</th>
-                        <th>Tanggal & Waktu Transaksi</th>
+                        <th>Kategori</th>
+                        <th>Periode</th>
                         <th>Tindakan</th>
                     </tr>
                 </thead>
@@ -73,6 +78,7 @@
                 columns: [
                     {data: 'amount'},
                     {data: 'description'},
+                    {data: 'category'},
                     {data: 'periode'},
                     {data: 'action'}
                 ]

@@ -28,6 +28,30 @@
 				Dashboard</a>
 		</li>
 
+		<li class="{{ request()->is('financial-planner*') ? 'active' : '' }}">
+			<a href="{{ route('financial-planner.index') }}">
+				<em class="fa fa-line-chart">&nbsp;</em>
+				Financial planner</a>
+		</li>
+
+		<li class="{{ request()->is('budgets*') ? 'active' : '' }}">
+			<a href="{{ route('budgets.index') }}">
+				<em class="fa fa-sliders">&nbsp;</em>
+				Anggaran</a>
+		</li>
+
+		<li class="{{ request()->is('debts*') ? 'active' : '' }}">
+			<a href="{{ route('debts.index') }}">
+				<em class="fa fa-credit-card">&nbsp;</em>
+				Utang &amp; cicilan</a>
+		</li>
+
+		<li class="{{ request()->is('savings-goals*') ? 'active' : '' }}">
+			<a href="{{ route('savings-goals.index') }}">
+				<em class="fa fa-bullseye">&nbsp;</em>
+				Goals tabungan</a>
+		</li>
+
 		<li class="{{ request()->is('saldos*') ? 'active' : '' }}">
 			<a href="{{ url('saldos') }}">
 				<em class="fa fa-money">&nbsp;</em>

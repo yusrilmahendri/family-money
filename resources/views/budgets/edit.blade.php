@@ -28,6 +28,16 @@
                          autofocus/>
                     </div>
 
+                    <div class="form-group @error('category_id') has-error @enderror">
+                        <label for="category_id">Kategori (opsional)</label>
+                        <select class="form-control" name="category_id" id="category_id">
+                            <option value="">— Semua / tidak spesifik —</option>
+                            @foreach($categories as $category)
+                                <option value="{{ $category->id }}" @selected(old('category_id', $budget->category_id) == $category->id)>{{ $category->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
                     <div class="form-group @error('description') has-error @enderror">
                         <label for="description">Keterangan / Catatan</label>
                         <input type="text" 
@@ -38,12 +48,12 @@
                     </div>
 
 
-                    <div class="form-group @error('periode_saldo') has-error @enderror">
-                        <label for="date">Tanggal Budget</label>
+                    <div class="form-group @error('periode') has-error @enderror">
+                        <label for="periode">Tanggal Budget</label>
                         <input type="date" 
                           class="form-control"
-                          value="{{ old('periode_saldo', $budget->periode) }}"
-                          name="periode_saldo" 
+                          value="{{ old('periode', optional($budget->periode)->format('Y-m-d')) }}"
+                          name="periode" 
                           placeholder="masukan tanggal"  autofocus/>
                     </div>
 

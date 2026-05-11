@@ -1,10 +1,14 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\SaldoController;
-use App\Http\Controllers\TransactionsController;
-use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\BudgetController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DebtController;
+use App\Http\Controllers\FinancialPlannerController;
+use App\Http\Controllers\SaldoController;
+use App\Http\Controllers\SavingsGoalController;
+use App\Http\Controllers\TransactionsController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', [DashboardController::class, 'index']);
 
@@ -18,6 +22,7 @@ Route::get('/api/v1/saldos/filter', [SaldoController::class, 'getFilteredSaldo']
 Route::get('/api/v1/transactions', [TransactionsController::class, 'data'])->name('transactions.data');
 Route::get('/api/v1/categories', [CategoryController::class, 'data'])->name('categories.data');
 Route::get('/api/dashboard/summary', [DashboardController::class, 'filterSummary']);
+Route::get('/api/v1/budgets', [BudgetController::class, 'data'])->name('budgets.data');
 
 // Export Routes
 Route::get('/dashboard/export/excel', [DashboardController::class, 'exportExcel'])->name('dashboard.export.excel');
@@ -30,3 +35,13 @@ Route::get('/transactions/export/pdf', [TransactionsController::class, 'exportPd
 Route::resource('saldos', SaldoController::class);
 Route::resource('transactions', TransactionsController::class);
 Route::resource('categories', CategoryController::class);
+
+Route::get('/financial-planner', [FinancialPlannerController::class, 'index'])->name('financial-planner.index');
+
+Route::resource('budgets', BudgetController::class)->except(['show']);
+Route::resource('debts', DebtController::class);
+Route::post('debts/{debt}/payments', [DebtController::class, 'storePayment'])->name('debts.payments.store');
+
+Route::resource('savings-goals', SavingsGoalController::class)->parameters(['savings-goals' => 'savings_goal']);
+Route::post('savings-goals/{savings_goal}/contributions', [SavingsGoalController::class, 'storeContribution'])
+    ->name('savings-goals.contributions.store');

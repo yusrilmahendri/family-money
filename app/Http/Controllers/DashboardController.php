@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\DashboardExport;
+use App\Models\Category;
+use App\Models\Saldo;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
-use App\Models\Saldo;
-use App\Models\Category;
 use App\Service\SaldoService;
-use Carbon\Carbon;
-use App\Exports\DashboardExport;
-use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Http\Request; 
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DashboardController extends Controller
 {
@@ -73,36 +73,36 @@ class DashboardController extends Controller
         $comparison = [
             [
                 'name' => 'Pemasukan',
-                'y'    => $totalSaldo,
+                'y' => $totalSaldo,
             ],
             [
                 'name' => 'Pengeluaran',
-                'y'    => $totalPengeluaran,
+                'y' => $totalPengeluaran,
             ],
         ];
 
         return view('dashboard', [
-            'totalSaldo'        => $totalSaldo,
-            'totalPengeluaran'  => $totalPengeluaran,
-            'sisaSaldo'         => $sisaSaldo,
-            'lastTrans'         => $lastTrans,
-            'jumlahTransaksi'   => $jumlahTransaksi,
-            'pengeluaranBulanan'=> $pengeluaranBulanan,
-            'categories'        => $categories,
-            'saldoPerKategori'  => $saldoPerKategori,
-            'comparison'        => $comparison,
+            'totalSaldo' => $totalSaldo,
+            'totalPengeluaran' => $totalPengeluaran,
+            'sisaSaldo' => $sisaSaldo,
+            'lastTrans' => $lastTrans,
+            'jumlahTransaksi' => $jumlahTransaksi,
+            'pengeluaranBulanan' => $pengeluaranBulanan,
+            'categories' => $categories,
+            'saldoPerKategori' => $saldoPerKategori,
+            'comparison' => $comparison,
         ]);
     }
 
     public function filterSummary(Request $request)
     {
-        $month      = $request->month;
-        $year       = $request->year;
+        $month = $request->month;
+        $year = $request->year;
         $categoryId = $request->category;
 
         /* ================= QUERY BASE ================= */
-        $saldoQuery        = Saldo::query();
-        $pengeluaranQuery  = Transaction::query();
+        $saldoQuery = Saldo::query();
+        $pengeluaranQuery = Transaction::query();
 
         if ($month) {
             $saldoQuery->whereMonth('created_at', $month);
@@ -120,9 +120,9 @@ class DashboardController extends Controller
         }
 
         /* ================= HITUNG ================= */
-        $totalSaldo        = $saldoQuery->sum('amount');
-        $totalPengeluaran  = $pengeluaranQuery->sum('amount');
-        $sisaSaldo         = $totalSaldo - $totalPengeluaran;
+        $totalSaldo = $saldoQuery->sum('amount');
+        $totalPengeluaran = $pengeluaranQuery->sum('amount');
+        $sisaSaldo = $totalSaldo - $totalPengeluaran;
 
         /* ================= PIE KOMPARASI ================= */
         $comparison = [
@@ -147,19 +147,19 @@ class DashboardController extends Controller
             if ($total > 0) {
                 $saldoPerKategori[] = [
                     'name' => $category->name,
-                    'y'    => $total
+                    'y' => $total,
                 ];
             }
         }
 
         return response()->json([
-            'comparison'       => $comparison,
+            'comparison' => $comparison,
             'saldoPerKategori' => $saldoPerKategori,
             'summary' => [
-                'totalSaldo'       => $totalSaldo,
+                'totalSaldo' => $totalSaldo,
                 'totalPengeluaran' => $totalPengeluaran,
-                'sisaSaldo'        => $sisaSaldo,
-            ]
+                'sisaSaldo' => $sisaSaldo,
+            ],
         ]);
     }
 
@@ -169,7 +169,8 @@ class DashboardController extends Controller
     public function exportExcel()
     {
         $data = $this->getDashboardData();
-        return Excel::download(new DashboardExport($data), 'laporan-dashboard-' . date('Y-m-d') . '.xlsx');
+
+        return Excel::download(new DashboardExport($data), 'laporan-dashboard-'.date('Y-m-d').'.xlsx');
     }
 
     /**
@@ -180,7 +181,8 @@ class DashboardController extends Controller
         $data = $this->getDashboardData();
 
         $pdf = Pdf::loadView('dashboard-pdf', $data);
-        return $pdf->download('laporan-dashboard-' . date('Y-m-d') . '.pdf');
+
+        return $pdf->download('laporan-dashboard-'.date('Y-m-d').'.pdf');
     }
 
     /**
@@ -231,12 +233,12 @@ class DashboardController extends Controller
         }
 
         return [
-            'totalSaldo'        => $totalSaldo,
-            'totalPengeluaran'  => $totalPengeluaran,
-            'sisaSaldo'         => $sisaSaldo,
-            'jumlahTransaksi'   => $jumlahTransaksi,
-            'pengeluaranBulanan'=> $pengeluaranBulanan,
-            'saldoPerKategori'  => $saldoPerKategori,
+            'totalSaldo' => $totalSaldo,
+            'totalPengeluaran' => $totalPengeluaran,
+            'sisaSaldo' => $sisaSaldo,
+            'jumlahTransaksi' => $jumlahTransaksi,
+            'pengeluaranBulanan' => $pengeluaranBulanan,
+            'saldoPerKategori' => $saldoPerKategori,
         ];
     }
 }
