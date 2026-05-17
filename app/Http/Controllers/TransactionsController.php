@@ -5,10 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
 use App\Models\Transaction;
-use App\Models\TransactionItem;
 use App\Models\Saldo;
 use Illuminate\Support\Facades\DB;
-use App\Service\BudgetService;
+use App\Models\Category;
 use Illuminate\Support\Facades\Storage;
 use App\Exports\TransactionExport;
 use Maatwebsite\Excel\Facades\Excel;
@@ -22,7 +21,7 @@ class TransactionsController extends Controller
 
         return DataTables::of($transactions)
             ->addColumn('name', function (Transaction $model) {
-                return $model->category->name ?? '-';
+                return $model->categorys->name ?? '-';
             })
             // FORMAT RUPIAH
             ->editColumn('amount', function ($row) {

@@ -17,7 +17,7 @@ class Transaction extends Model
     'transaction_date' => 'date',
 ];
 
-    public function category(){
+    public function categorys(){
         return $this->belongsTo(Category::class);
     }
 
