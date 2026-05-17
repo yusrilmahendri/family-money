@@ -41,7 +41,7 @@ class DashboardController extends Controller
         $jumlahTransaksi = Transaction::count();
 
         // Categories for filter
-        $categories =  App\Models\Category::all();
+        $categories =  Category::all();
 
         // ---- Grafik 12 Bulan (Jan–Des) ----
         $pengeluaranBulanan = [];
