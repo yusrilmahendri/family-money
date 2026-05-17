@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\category;
+use App\Models\Category;
 use App\Models\TransactionItem;
 
 class Transaction extends Model
@@ -17,7 +17,7 @@ class Transaction extends Model
     'transaction_date' => 'date',
 ];
 
-    public function categorys(){
+    public function category(){
         return $this->belongsTo(Category::class);
     }
 
