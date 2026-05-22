@@ -15,16 +15,40 @@
                                     <form action="{{ route('transactions.store') }}" method="POST" enctype="multipart/form-data">
                                         @csrf
 
+                                        <div class="form-group @error('category_id') has-error @enderror">
+                                            <label>Kategori / Jenis Usaha <small class="text-muted">(opsional)</small></label>
+                                            <select class="form-control" name="category_id" id="trx_category_id">
+                                                <option value="">— Tanpa kategori (saldo umum) —</option>
+                                                @foreach(\App\Models\Category::orderBy('name')->get() as $cat)
+                                                    <option value="{{ $cat->id }}" @selected(old('category_id') == $cat->id)>{{ $cat->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <small class="text-muted">Pilih kategori jika transaksi diambil dari saldo jenis usaha tertentu. Kosongkan untuk pengeluaran pribadi umum (misal: bayar BPJS).</small>
+                                            @error('category_id')
+                                                <small class="text-danger d-block">{{ $message }}</small>
+                                            @enderror
+                                        </div>
+
+                                        <div id="trx-saldo-info" class="alert alert-info" style="display:none;">
+                                            <div><strong>Saldo <span id="trx-info-name"></span> tersedia (setelah dikurangi anggaran &amp; transaksi lain):</strong> <span id="trx-info-tersedia" style="font-weight:700;">-</span></div>
+                                        </div>
+
                                         <div class="form-group @error('total') has-error @enderror">
                                             <label>Total Transaksi</label>
                                             <input type="text" class="form-control" name="total" id="total_transaksi"
                                                 placeholder="masukan total transaksi (otomatis jika isi detail barang)">
+                                            @error('total')
+                                                <small class="text-danger d-block">{{ $message }}</small>
+                                            @enderror
+                                            @error('amount')
+                                                <small class="text-danger d-block">{{ $message }}</small>
+                                            @enderror
                                         </div>
 
                                         <div class="form-group @error('description') has-error @enderror">
                                             <label>Keterangan / Catatan</label>
                                             <input type="text" class="form-control"
-                                                name="description" placeholder="masukan keterangan/catatan" autofocus />
+                                                name="description" value="{{ old('description') }}" placeholder="masukan keterangan/catatan" autofocus />
                                         </div>
 
                                         <div class="form-group @error('date') has-error @enderror">
@@ -199,5 +223,41 @@
         }
     });
 
+</script>
+
+<script>
+    // -------------------------
+    // Info saldo per kategori (AJAX) — separate script agar tidak terblokir error script lain
+    // -------------------------
+    (function() {
+        const trxCategorySelect = document.getElementById('trx_category_id');
+        const trxSaldoInfo = document.getElementById('trx-saldo-info');
+        const trxInfoName = document.getElementById('trx-info-name');
+        const trxInfoTersedia = document.getElementById('trx-info-tersedia');
+        if (!trxCategorySelect) return;
+        const trxCategoryInfoUrl = "{{ url('/api/v1/budgets/category-info') }}";
+
+        function loadTrxCategoryInfo() {
+            const catId = trxCategorySelect.value;
+            if (!catId) {
+                trxSaldoInfo.style.display = 'none';
+                return;
+            }
+            fetch(`${trxCategoryInfoUrl}/${catId}`)
+                .then(r => r.json())
+                .then(data => {
+                    trxInfoName.textContent = data.category.name;
+                    trxInfoTersedia.textContent = data.tersedia_formatted;
+                    trxInfoTersedia.style.color = data.tersedia < 0 ? '#d9534f' : '#28a745';
+                    trxSaldoInfo.style.display = 'block';
+                })
+                .catch(() => { trxSaldoInfo.style.display = 'none'; });
+        }
+
+        trxCategorySelect.addEventListener('change', loadTrxCategoryInfo);
+        if (trxCategorySelect.value) {
+            loadTrxCategoryInfo();
+        }
+    })();
 </script>
 @endpush

@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
+use App\Models\Budget;
+use App\Models\Category;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Models\Saldo;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use App\Service\BudgetService;
 use Illuminate\Support\Facades\Storage;
 use App\Exports\TransactionExport;
@@ -87,33 +90,116 @@ class TransactionsController extends Controller
     {
         return view('transactions.create', [
             'title' => 'Tambah Transaksi',
+            'categories' => Category::orderBy('name')->get(),
         ]);
     }
 
     /**
      * Store a newly created resource in storage.
+     * Transaksi memotong saldo (kebutuhan pribadi: BPJS dll).
      */
     public function store(Request $request)
     {
-        // Simpan file nota
+        $validated = $request->validate([
+            'total' => ['required', 'string'],
+            'description' => ['nullable', 'string', 'max:255'],
+            'date' => ['required', 'date'],
+            'category_id' => ['nullable', 'exists:categories,id'],
+            'keterangan_detail' => ['nullable', 'string'],
+            'nota' => ['nullable', 'file', 'image', 'max:4096'],
+        ]);
+
+        $total = (float) preg_replace('/[^0-9]/', '', $validated['total']);
+
+        // Validasi: kalau ada category_id, pastikan saldo kategori cukup
+        if (! empty($validated['category_id'])) {
+            $this->ensureSaldoEnough((int) $validated['category_id'], $total);
+        } else {
+            $this->ensureSaldoGlobalEnough($total);
+        }
+
         $notaFile = null;
         if ($request->hasFile('nota')) {
             $notaFile = $request->file('nota')->store('nota', 'public');
         }
 
-        // Hapus format Rupiah dari total
-        $total = preg_replace('/[Rp\s\.]/', '', $request->total);
-
-        // Simpan transaksi utama
-        $trx = Transaction::create([
-            'amount' => $total, // sudah bersih
-            'transaction_date'  => $request->date,
-            'description' => $request->description,
-            'keterangan_detail' => $request->keterangan_detail,
-            'nota'  => $notaFile
+        Transaction::create([
+            'category_id' => $validated['category_id'] ?? null,
+            'amount' => $total,
+            'transaction_date' => $validated['date'],
+            'description' => $validated['description'] ?? null,
+            'keterangan_detail' => $validated['keterangan_detail'] ?? null,
+            'nota' => $notaFile,
         ]);
 
-        return redirect()->route('transactions.index')->with('success', 'Transaksi berhasil disimpan!');
+        return redirect()->route('transactions.index')->with('success', 'Transaksi berhasil disimpan. Saldo telah dipotong.');
+    }
+
+    /**
+     * Pastikan saldo kategori cukup untuk transaksi.
+     */
+    private function ensureSaldoEnough(int $categoryId, float $amount, ?int $excludeTransactionId = null): void
+    {
+        $saldo = (float) Saldo::where('category_id', $categoryId)->sum('amount');
+        $anggaran = (float) Budget::where('category_id', $categoryId)->sum('amount');
+
+        $trxQuery = Transaction::where('category_id', $categoryId);
+        if ($excludeTransactionId) {
+            $trxQuery->where('id', '!=', $excludeTransactionId);
+        }
+        $transaksiLain = (float) $trxQuery->sum('amount');
+
+        $tersedia = $saldo - $anggaran - $transaksiLain;
+
+        if ($amount > $tersedia + 0.01) {
+            $kategori = Category::find($categoryId);
+            $namaKategori = $kategori?->name ?? 'kategori ini';
+
+            throw ValidationException::withMessages([
+                'total' => sprintf(
+                    'Saldo "%s" tidak cukup. Tersedia: Rp %s, transaksi yang dimasukkan: Rp %s.',
+                    $namaKategori,
+                    number_format($tersedia, 0, ',', '.'),
+                    number_format($amount, 0, ',', '.')
+                ),
+                'amount' => sprintf(
+                    'Saldo "%s" tidak cukup. Tersedia: Rp %s.',
+                    $namaKategori,
+                    number_format($tersedia, 0, ',', '.')
+                ),
+            ]);
+        }
+    }
+
+    /**
+     * Pastikan saldo bebas (global) cukup untuk transaksi tanpa kategori.
+     */
+    private function ensureSaldoGlobalEnough(float $amount, ?int $excludeTransactionId = null): void
+    {
+        $totalSaldo = (float) Saldo::sum('amount');
+        $totalAnggaran = (float) Budget::sum('amount');
+
+        $trxQuery = Transaction::query();
+        if ($excludeTransactionId) {
+            $trxQuery->where('id', '!=', $excludeTransactionId);
+        }
+        $totalTransaksi = (float) $trxQuery->sum('amount');
+
+        $tersedia = $totalSaldo - $totalAnggaran - $totalTransaksi;
+
+        if ($amount > $tersedia + 0.01) {
+            throw ValidationException::withMessages([
+                'total' => sprintf(
+                    'Saldo bebas tidak cukup. Tersedia: Rp %s, transaksi yang dimasukkan: Rp %s.',
+                    number_format($tersedia, 0, ',', '.'),
+                    number_format($amount, 0, ',', '.')
+                ),
+                'amount' => sprintf(
+                    'Saldo bebas tidak cukup. Tersedia: Rp %s.',
+                    number_format($tersedia, 0, ',', '.')
+                ),
+            ]);
+        }
     }
 
     /**
@@ -141,31 +227,34 @@ class TransactionsController extends Controller
     {
         $transaction = Transaction::findOrFail($id);
 
-        // ==========================
-        // VALIDASI
-        // ==========================
         $validated = $request->validate([
             'amount' => 'required|string',
             'description' => 'nullable|string',
             'date' => 'required|date',
+            'category_id' => ['nullable', 'exists:categories,id'],
             'keterangan_detail' => 'nullable|string',
         ]);
+
+        $amount = (float) preg_replace('/[^0-9]/', '', $validated['amount']);
+
+        // Validasi saldo (tidak menghitung transaksi yang sedang di-edit)
+        if (! empty($validated['category_id'])) {
+            $this->ensureSaldoEnough((int) $validated['category_id'], $amount, $transaction->id);
+        } else {
+            $this->ensureSaldoGlobalEnough($amount, $transaction->id);
+        }
 
         DB::beginTransaction();
 
         try {
-            // FORMAT TOTAL
-            $amount = preg_replace('/[^0-9]/', '', $validated['amount']);
-
-            // UPDATE TRANSAKSI
             $transaction->update([
+                'category_id' => $validated['category_id'] ?? null,
                 'amount' => $amount,
                 'description' => $validated['description'] ?? null,
                 'transaction_date' => $validated['date'],
                 'keterangan_detail' => $validated['keterangan_detail'] ?? null,
             ]);
 
-            // HANDLING NOTA
             if ($request->hasFile('nota')) {
                 if ($transaction->nota) {
                     Storage::disk('public')->delete($transaction->nota);
@@ -186,7 +275,7 @@ class TransactionsController extends Controller
             DB::rollBack();
 
             return back()->withErrors([
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }

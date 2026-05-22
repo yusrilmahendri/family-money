@@ -58,6 +58,11 @@
 				Saldo</a>
 		</li>
 
+        <li class="{{ request()->is('categories*') ? 'active' : '' }}">
+            <a href="{{ url('categories') }}">
+                <em class="fa fa-tags">&nbsp;</em>
+                Jenis Usaha</a>
+        </li>
 
         <li class="{{ request()->is('transactions*') ? 'active' : '' }}">
             <a href="{{ url('transactions') }}">

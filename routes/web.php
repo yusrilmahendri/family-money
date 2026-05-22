@@ -23,6 +23,7 @@ Route::get('/api/v1/transactions', [TransactionsController::class, 'data'])->nam
 Route::get('/api/v1/categories', [CategoryController::class, 'data'])->name('categories.data');
 Route::get('/api/dashboard/summary', [DashboardController::class, 'filterSummary']);
 Route::get('/api/v1/budgets', [BudgetController::class, 'data'])->name('budgets.data');
+Route::get('/api/v1/budgets/category-info/{category}', [BudgetController::class, 'categoryInfo'])->name('budgets.category_info');
 
 // Export Routes
 Route::get('/dashboard/export/excel', [DashboardController::class, 'exportExcel'])->name('dashboard.export.excel');
@@ -38,7 +39,10 @@ Route::resource('categories', CategoryController::class);
 
 Route::get('/financial-planner', [FinancialPlannerController::class, 'index'])->name('financial-planner.index');
 
-Route::resource('budgets', BudgetController::class)->except(['show']);
+Route::resource('budgets', BudgetController::class);
+Route::post('budgets/{budget}/activities', [BudgetController::class, 'storeActivity'])->name('budgets.activities.store');
+Route::put('budgets/{budget}/activities/{activity}', [BudgetController::class, 'updateActivity'])->name('budgets.activities.update');
+Route::delete('budgets/{budget}/activities/{activity}', [BudgetController::class, 'destroyActivity'])->name('budgets.activities.destroy');
 Route::resource('debts', DebtController::class);
 Route::post('debts/{debt}/payments', [DebtController::class, 'storePayment'])->name('debts.payments.store');
 

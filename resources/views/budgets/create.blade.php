@@ -1,72 +1,117 @@
 @extends('welcome')
 
 @section('content')
-
-<div class="main" style="margin-top: 100px;">
-    <div class="main-content">
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="panel">
-
-
-        <div class="panel-body">
-            <div class="row">
-                <div class="col-lg-12">
-                    <form action="{{ route('budgets.store') }}" method="POST">
+<div style="padding: 15px;">
+    <div class="row">
+        <div class="col-xs-12 col-md-8 col-md-offset-2">
+            <h4 style="margin: 5px 0 15px;">Tambah Anggaran</h4>
+            <form action="{{ route('budgets.store') }}" method="POST">
 
                         @csrf
 
-                        
-                      <div class="form-group @error('amount') has-error @enderror">
-                        <label for="amount">Saldo Budget</label>
-                        <input type="text" class="form-control" id="amount"
-                          name="amount" placeholder="masukan Jumlah Saldo"
-                         autofocus/>
-                    </div>
-
+                    {{-- Jenis Usaha (wajib) --}}
                     <div class="form-group @error('category_id') has-error @enderror">
-                        <label for="category_id">Kategori (opsional)</label>
-                        <select class="form-control" name="category_id" id="category_id">
-                            <option value="">— Semua / tidak spesifik —</option>
+                        <label for="category_id">Jenis Usaha <span class="text-danger">*</span></label>
+                        <select class="form-control" name="category_id" id="category_id" required>
+                            <option value="">— Pilih jenis usaha —</option>
                             @foreach($categories as $category)
                                 <option value="{{ $category->id }}" @selected(old('category_id') == $category->id)>{{ $category->name }}</option>
                             @endforeach
                         </select>
+                        @error('category_id')
+                            <small class="text-danger">{{ $message }}</small>
+                        @enderror
+                        <small class="text-muted">
+                            Pilih jenis usaha untuk anggaran ini (misal: <em>Usaha Kebun Sawit</em>).
+                            Belum ada jenis usaha? <a href="{{ route('categories.index') }}" target="_blank">Tambah kategori dulu</a>.
+                        </small>
+                    </div>
+
+                    {{-- Info saldo per kategori (muncul setelah pilih kategori) --}}
+                    <div id="saldo-info" class="alert alert-info" style="display:none;">
+                        <div><strong>Saldo <span id="info-cat-name"></span>:</strong> <span id="info-saldo">-</span></div>
+                        <div><strong>Sudah Dianggarkan:</strong> <span id="info-anggaran">-</span></div>
+                        <div><strong>Transaksi Pribadi:</strong> <span id="info-transaksi">-</span></div>
+                        <div><strong>Saldo Tersedia untuk Anggaran:</strong> <span id="info-tersedia" style="font-weight:700;">-</span></div>
+                    </div>
+
+                    <div class="form-group @error('amount') has-error @enderror">
+                        <label for="amount">Jumlah Anggaran <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="amount"
+                          name="amount" placeholder="Masukan jumlah anggaran"
+                         autofocus/>
+                        @error('amount')
+                            <small class="text-danger">{{ $message }}</small>
+                        @enderror
+                        <small class="text-muted">
+                            Jumlah ini akan otomatis memotong saldo jenis usaha yang dipilih.
+                        </small>
                     </div>
 
                     <div class="form-group @error('description') has-error @enderror">
                         <label for="description">Keterangan / Catatan</label>
                         <input type="text" class="form-control"
-                          name="description" placeholder="masukan keterangan/catatan"  autofocus/>
+                          name="description" value="{{ old('description') }}" placeholder="Masukan keterangan/catatan"/>
                     </div>
 
                     <div class="form-group @error('periode') has-error @enderror">
-                        <label for="periode_saldo">Tanggal / Waktu Transaksi</label>
+                        <label for="periode">Periode Anggaran <span class="text-danger">*</span></label>
                         <input type="date" class="form-control"
-                          name="periode" placeholder="masukan tanggal"  autofocus/>
+                          name="periode" value="{{ old('periode', date('Y-m-d')) }}" placeholder="Masukan tanggal" required/>
                     </div>
 
-                <button type="submit" class="btn btn-primary">
-                        Simpan Data
-                </button>
-
-              </form>
-            </div>
-         </div>
-      </div>
-   </div>
+                <button type="submit" class="btn btn-primary">Simpan Data</button>
+                <a href="{{ route('budgets.index') }}" class="btn btn-default">Batal</a>
+            </form>
+        </div>
+    </div>
 </div>
-
 @endsection()
 
 @push('scripts')
 <script>
     const amountInput = document.getElementById('amount');
+    const categorySelect = document.getElementById('category_id');
+    const saldoInfo = document.getElementById('saldo-info');
+    const infoCatName = document.getElementById('info-cat-name');
+    const infoSaldo = document.getElementById('info-saldo');
+    const infoAnggaran = document.getElementById('info-anggaran');
+    const infoTransaksi = document.getElementById('info-transaksi');
+    const infoTersedia = document.getElementById('info-tersedia');
+
+    const categoryInfoUrl = "{{ url('/api/v1/budgets/category-info') }}";
 
     amountInput.addEventListener('keyup', function(e) {
         this.value = formatRupiah(this.value);
     });
+
+    categorySelect.addEventListener('change', loadCategoryInfo);
+
+    function loadCategoryInfo() {
+        const catId = categorySelect.value;
+        if (!catId) {
+            saldoInfo.style.display = 'none';
+            return;
+        }
+        fetch(`${categoryInfoUrl}/${catId}`)
+            .then(r => r.json())
+            .then(data => {
+                infoCatName.textContent = data.category.name;
+                infoSaldo.textContent = data.saldo_formatted;
+                infoAnggaran.textContent = data.anggaran_formatted;
+                infoTransaksi.textContent = data.transaksi_formatted;
+                infoTersedia.textContent = data.tersedia_formatted;
+                infoTersedia.style.color = data.tersedia < 0 ? '#d9534f' : '#28a745';
+                saldoInfo.style.display = 'block';
+            })
+            .catch(() => {
+                saldoInfo.style.display = 'none';
+            });
+    }
+
+    if (categorySelect.value) {
+        loadCategoryInfo();
+    }
 
     function formatRupiah(angka) {
         angka = angka.replace(/[^,\d]/g, '').toString();

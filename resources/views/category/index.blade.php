@@ -2,24 +2,25 @@
 
 @section('content')
 
-    <div class="box-header with-border sm-6 md-8 lg-12" style="margin-top: 100px; margin-bottom: -25px; margin-right: 10px;">
-        <h3 class="box-title">Daftar Kategori Saldo</h3>
-        <div class="box-tools pull-right">
-            <a href="{{ route('categories.create') }}" 
-               class="btn btn-primary btn-sm">
-               <i class="fa fa-plus"></i> Tambah Kategori
-            </a>
+    <div style="padding: 15px;">
+        <div class="row" style="margin-bottom: 10px;">
+            <div class="col-xs-12 col-sm-7">
+                <h3 style="margin: 5px 0; font-size: 18px;">Daftar Jenis Usaha</h3>
+            </div>
+            <div class="col-xs-12 col-sm-5 text-right" style="margin-top: 5px;">
+                <a href="{{ route('categories.create') }}" class="btn btn-primary btn-sm">
+                    <i class="fa fa-plus"></i> Tambah Jenis Usaha
+                </a>
+            </div>
         </div>
-    </div>
 
-     <!-- tabel -->
-    <div class="box-body" style="margin-top: 100px;">
-        <div class="table-responsive">
-            <table class="table table-bordered table-hover" id="dataTable">
+        <!-- tabel -->
+        <div class="table-responsive" style="-webkit-overflow-scrolling: touch;">
+            <table class="table table-bordered table-hover" id="dataTable" style="min-width: 400px;">
                 <thead>
                     <tr>
                         <th>No</th>
-                        <th>Nama Kategori</th>
+                        <th>Nama Jenis Usaha</th>
                         <th>Tindakan</th>
                     </tr>
                 </thead>
@@ -31,7 +32,7 @@
     <form action="" method="post" id="deleteForm">
              @csrf
              @method("DELETE")
-             <input type="submit" value="Hapus" 
+             <input type="submit" value="Hapus"
              style="display: none ">
     </form>
 @endsection()
@@ -40,7 +41,7 @@
      <!-- boostrap notify -->
      <script src="{{ asset('js/bs-notify.min.js') }}">
      </script>
-    
+
     <!-- alertnya boostrap notify -->
     @include('templates.partials.alerts')
 

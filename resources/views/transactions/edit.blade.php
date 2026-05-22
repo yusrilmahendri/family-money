@@ -19,7 +19,18 @@
                                         @csrf
                                         @method('PUT')
 
-
+                                        <div class="form-group @error('category_id') has-error @enderror">
+                                            <label>Kategori / Jenis Usaha <small class="text-muted">(opsional)</small></label>
+                                            <select class="form-control" name="category_id">
+                                                <option value="">— Tanpa kategori (saldo umum) —</option>
+                                                @foreach(\App\Models\Category::orderBy('name')->get() as $cat)
+                                                    <option value="{{ $cat->id }}" @selected(old('category_id', $transaction->category_id) == $cat->id)>{{ $cat->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            @error('category_id')
+                                                <small class="text-danger d-block">{{ $message }}</small>
+                                            @enderror
+                                        </div>
 
                                         <div class="form-group">
                                             <label>Total Transaksi</label>
@@ -28,6 +39,9 @@
                                                 name="amount"
                                                 id="total_transaksi"
                                                 value="Rp {{ number_format($transaction->amount, 0, ',', '.') }}">
+                                            @error('amount')
+                                                <small class="text-danger d-block">{{ $message }}</small>
+                                            @enderror
                                         </div>
 
                                         <div class="form-group">
