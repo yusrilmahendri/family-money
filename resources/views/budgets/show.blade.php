@@ -158,12 +158,14 @@
                                     </td>
                                     <td class="text-right">Rp {{ number_format((float) $act->amount, 0, ',', '.') }}</td>
                                     <td class="text-center">
-                                        <form action="{{ route('budgets.activities.destroy', [$budget, $act]) }}"
-                                              method="POST" style="display:inline;"
-                                              onsubmit="return confirm('Yakin ingin menghapus aktivitas ini?');">
+                                        <form id="delete-activity-{{ $act->id }}"
+                                              action="{{ route('budgets.activities.destroy', [$budget, $act]) }}"
+                                              method="POST" style="display:inline;">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn btn-danger btn-xs">
+                                            <button type="button" class="btn btn-danger btn-xs btn-delete-activity"
+                                                    data-form="delete-activity-{{ $act->id }}"
+                                                    data-name="{{ $act->name }}">
                                                 <i class="fa fa-trash"></i>
                                             </button>
                                         </form>
@@ -235,6 +237,31 @@
         }
         rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
         this.value = rupiah ? 'Rp ' + rupiah : '';
+    });
+})();
+
+// Konfirmasi hapus aktivitas pakai SweetAlert
+(function() {
+    document.querySelectorAll('.btn-delete-activity').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var formId = this.getAttribute('data-form');
+            var name = this.getAttribute('data-name') || 'aktivitas ini';
+            swal({
+                title: 'Yakin hapus aktivitas?',
+                text: '"' + name + '" akan dihapus dan jumlahnya dikembalikan ke sisa anggaran.',
+                icon: 'warning',
+                buttons: {
+                    cancel: { text: 'Batal', value: null, visible: true },
+                    confirm: { text: 'Ya, Hapus', value: true, className: 'btn-danger' }
+                },
+                dangerMode: true,
+            }).then(function(ok) {
+                if (ok) {
+                    document.getElementById(formId).submit();
+                }
+            });
+        });
     });
 })();
 </script>

@@ -34,10 +34,22 @@
 				Financial planner</a>
 		</li>
 
+		<li class="{{ request()->is('laba-rugi*') ? 'active' : '' }}">
+			<a href="{{ route('profit-loss.index') }}">
+				<em class="fa fa-bar-chart">&nbsp;</em>
+				Laba / Rugi</a>
+		</li>
+
 		<li class="{{ request()->is('budgets*') ? 'active' : '' }}">
 			<a href="{{ route('budgets.index') }}">
 				<em class="fa fa-sliders">&nbsp;</em>
 				Anggaran</a>
+		</li>
+
+		<li class="{{ request()->is('incomes*') ? 'active' : '' }}">
+			<a href="{{ route('incomes.index') }}">
+				<em class="fa fa-arrow-up">&nbsp;</em>
+				Pemasukan Usaha</a>
 		</li>
 
 		<li class="{{ request()->is('debts*') ? 'active' : '' }}">
@@ -67,7 +79,13 @@
         <li class="{{ request()->is('transactions*') ? 'active' : '' }}">
             <a href="{{ url('transactions') }}">
                 <em class="fa fa-shopping-cart">&nbsp;</em>
-                Transactions</a>
+                Transaksi Pribadi</a>
+        </li>
+
+        <li class="{{ request()->is('recurring-transactions*') ? 'active' : '' }}">
+            <a href="{{ route('recurring-transactions.index') }}">
+                <em class="fa fa-refresh">&nbsp;</em>
+                Transaksi Berulang</a>
         </li>
 	</ul>
 

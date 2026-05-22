@@ -1,29 +1,49 @@
 @extends('welcome')
 
 @section('content')
-<div style="padding: 15px;">
+<div class="category-form-page" style="padding: 15px;">
     <div class="row">
         <div class="col-xs-12 col-md-8 col-md-offset-2">
-            <h4 style="margin: 5px 0 15px;">Tambah Jenis Usaha</h4>
-            <p class="text-muted">Tambahkan jenis usaha Anda, misal: <em>Usaha Kebun Sawit, Usaha Warung, Usaha Ternak</em>, dll.</p>
+            <div class="form-card" style="border: 2px solid #f0f0f0; box-shadow: 0px 2px 8px rgba(0,0,0,0.05); border-radius: 12px; padding: 20px; background: #fff;">
+                <h4 style="margin: 0 0 6px; font-weight: 700;">Tambah Jenis Usaha</h4>
+                <p class="text-muted" style="margin-bottom: 18px; font-size: 13px;">
+                    Tambahkan jenis usaha Anda, misal: <em>Usaha Kebun Sawit, Usaha Warung, Usaha Ternak</em>, dll.
+                </p>
 
-            <form action="{{ route('categories.store') }}" method="POST">
-                @csrf
+                <form action="{{ route('categories.store') }}" method="POST">
+                    @csrf
 
-                <div class="form-group @error('name') has-error @enderror">
-                    <label for="name">Nama Jenis Usaha <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="name"
-                        name="name" value="{{ old('name') }}"
-                        placeholder="Misal: Usaha Kebun Sawit" required autofocus/>
-                    @error('name')
-                        <small class="text-danger">{{ $message }}</small>
-                    @enderror
-                </div>
+                    <div class="form-group @error('name') has-error @enderror">
+                        <label for="name">Nama Jenis Usaha <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name"
+                            name="name" value="{{ old('name') }}"
+                            placeholder="Misal: Usaha Kebun Sawit" required autofocus/>
+                        @error('name')
+                            <small class="text-danger">{{ $message }}</small>
+                        @enderror
+                    </div>
 
-                <button type="submit" class="btn btn-primary">Simpan Data</button>
-                <a href="{{ route('categories.index') }}" class="btn btn-default">Batal</a>
-            </form>
+                    <div class="form-actions" style="margin-top: 20px;">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa fa-save"></i> Simpan Data
+                        </button>
+                        <a href="{{ route('categories.index') }}" class="btn btn-default">Batal</a>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
+
+<style>
+    @media (max-width: 767px) {
+        .category-form-page { padding: 10px !important; }
+        .category-form-page .form-card { padding: 15px !important; }
+        .category-form-page .form-actions .btn {
+            display: block;
+            width: 100%;
+            margin: 0 0 8px;
+        }
+    }
+</style>
 @endsection

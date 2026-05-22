@@ -5,6 +5,9 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DebtController;
 use App\Http\Controllers\FinancialPlannerController;
+use App\Http\Controllers\IncomeController;
+use App\Http\Controllers\ProfitLossController;
+use App\Http\Controllers\RecurringTransactionController;
 use App\Http\Controllers\SaldoController;
 use App\Http\Controllers\SavingsGoalController;
 use App\Http\Controllers\TransactionsController;
@@ -49,3 +52,17 @@ Route::post('debts/{debt}/payments', [DebtController::class, 'storePayment'])->n
 Route::resource('savings-goals', SavingsGoalController::class)->parameters(['savings-goals' => 'savings_goal']);
 Route::post('savings-goals/{savings_goal}/contributions', [SavingsGoalController::class, 'storeContribution'])
     ->name('savings-goals.contributions.store');
+
+// Pemasukan Usaha
+Route::get('/api/v1/incomes', [IncomeController::class, 'data'])->name('incomes.data');
+Route::resource('incomes', IncomeController::class)->except(['show']);
+
+// Laporan Laba/Rugi
+Route::get('/laba-rugi', [ProfitLossController::class, 'index'])->name('profit-loss.index');
+
+// Recurring Transactions
+Route::get('/api/v1/recurring-transactions', [RecurringTransactionController::class, 'data'])->name('recurring.data');
+Route::post('/recurring-transactions/{recurring}/post', [RecurringTransactionController::class, 'postNow'])->name('recurring.post');
+Route::resource('recurring-transactions', RecurringTransactionController::class)->parameters([
+    'recurring-transactions' => 'recurring',
+])->except(['show']);

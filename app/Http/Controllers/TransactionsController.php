@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
 use App\Models\Budget;
 use App\Models\Category;
+use App\Models\Income;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Models\Saldo;
@@ -140,7 +141,8 @@ class TransactionsController extends Controller
      */
     private function ensureSaldoEnough(int $categoryId, float $amount, ?int $excludeTransactionId = null): void
     {
-        $saldo = (float) Saldo::where('category_id', $categoryId)->sum('amount');
+        $saldo = (float) Saldo::where('category_id', $categoryId)->sum('amount')
+            + (float) Income::where('category_id', $categoryId)->sum('amount');
         $anggaran = (float) Budget::where('category_id', $categoryId)->sum('amount');
 
         $trxQuery = Transaction::where('category_id', $categoryId);
@@ -176,7 +178,7 @@ class TransactionsController extends Controller
      */
     private function ensureSaldoGlobalEnough(float $amount, ?int $excludeTransactionId = null): void
     {
-        $totalSaldo = (float) Saldo::sum('amount');
+        $totalSaldo = (float) Saldo::sum('amount') + (float) Income::sum('amount');
         $totalAnggaran = (float) Budget::sum('amount');
 
         $trxQuery = Transaction::query();

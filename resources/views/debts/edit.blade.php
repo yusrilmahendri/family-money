@@ -43,10 +43,10 @@
                 <a href="{{ route('debts.index') }}" class="btn btn-default">Kembali</a>
             </form>
             <hr>
-            <form method="POST" action="{{ route('debts.destroy', $debt) }}" onsubmit="return confirm('Hapus utang ini beserta riwayat cicilan?');">
+            <form id="delete-debt-form" method="POST" action="{{ route('debts.destroy', $debt) }}">
                 @csrf
                 @method('DELETE')
-                <button type="submit" class="btn btn-danger btn-sm">Hapus utang</button>
+                <button type="button" id="btn-delete-debt" class="btn btn-danger btn-sm">Hapus utang</button>
             </form>
         </div>
     </div>
@@ -75,5 +75,20 @@ function formatRupiah(angka) {
     rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
     return rupiah ? 'Rp ' + rupiah : '';
 }
+
+document.getElementById('btn-delete-debt').addEventListener('click', function() {
+    swal({
+        title: 'Hapus utang ini?',
+        text: 'Seluruh riwayat cicilan juga akan ikut terhapus.',
+        icon: 'warning',
+        buttons: {
+            cancel: { text: 'Batal', value: null, visible: true },
+            confirm: { text: 'Ya, Hapus', value: true, className: 'btn-danger' }
+        },
+        dangerMode: true,
+    }).then(function(ok) {
+        if (ok) document.getElementById('delete-debt-form').submit();
+    });
+});
 </script>
 @endpush

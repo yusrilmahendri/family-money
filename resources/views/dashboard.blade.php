@@ -5,56 +5,149 @@
 
     {{-- Card Summary --}}
     <div class="row g-3" style="margin-top: 10px;">
-        <div class="col-md-3">
+        <div class="col-xs-12 col-sm-6 col-md-3">
             <div class="card shadow-sm border-0">
                 <div class="card-body">
-                    <h6 class="text-muted">Total Saldo yang masuk</h6>
-                    <h3 class="text-primary fw-bold">
+                    <h6 class="text-muted">Total Dana Masuk</h6>
+                    <h3 class="text-primary" style="font-weight:700; word-break:break-all;">
                         Rp {{ number_format($totalSaldo, 0, ',', '.') }}
                     </h3>
+                    <small class="text-muted">Saldo Rp {{ number_format($totalSaldoMasuk ?? 0, 0, ',', '.') }} + Pemasukan Rp {{ number_format($totalPemasukan ?? 0, 0, ',', '.') }}</small>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3">
+        <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 15px;">
             <div class="card shadow-sm border-0">
                 <div class="card-body">
-                    <h6 class="text-muted">Total Pengeluaran</h6>
-                    <h3 class="text-danger fw-bold">
+                    <h6 class="text-muted">Total Pengeluaran Pribadi</h6>
+                    <h3 class="text-danger" style="font-weight:700; word-break:break-all;">
                         Rp {{ number_format($totalPengeluaran, 0, ',', '.') }}
                     </h3>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3">
+        <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 15px;">
             <div class="card shadow-sm border-0">
                 <div class="card-body">
-                    <h6 class="text-muted">Sisa Saldo</h6>
-                    <h3 class="text-success fw-bold">
+                    <h6 class="text-muted">Saldo Bebas (Tersisa)</h6>
+                    <h3 class="{{ $sisaSaldo < 0 ? 'text-danger' : 'text-success' }}" style="font-weight:700; word-break:break-all;">
                         Rp {{ number_format($sisaSaldo, 0, ',', '.') }}
                     </h3>
+                    <small class="text-muted">Dana − Anggaran − Transaksi</small>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3">
+        <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 15px;">
             <div class="card shadow-sm border-0">
                 <div class="card-body">
-                    <h6 class="text-muted">Jumlah Transaksi</h6>
-                    <h3 class="fw-bold">{{ $jumlahTransaksi }}</h3>
+                    <h6 class="text-muted">Laba Usaha Bulan Ini</h6>
+                    <h3 class="{{ ($labaBulanIni ?? 0) < 0 ? 'text-danger' : 'text-success' }}" style="font-weight:700; word-break:break-all;">
+                        Rp {{ number_format($labaBulanIni ?? 0, 0, ',', '.') }}
+                    </h3>
+                    <small class="text-muted">Pemasukan − Biaya operasional</small>
                 </div>
             </div>
         </div>
     </div>
 
-    {{-- Update Terakhir --}}
-    <div class="mt-4">
+    {{-- Ringkasan bulan ini --}}
+    <div class="row">
+        <div class="col-xs-12 col-sm-4" style="margin-bottom: 15px;">
+            <div class="panel panel-success"><div class="panel-body text-center">
+                <h6 style="margin:0;">Pemasukan Bulan Ini</h6>
+                <h4 style="font-weight:700; margin:5px 0 0;">Rp {{ number_format($pemasukanBulanIni ?? 0, 0, ',', '.') }}</h4>
+            </div></div>
+        </div>
+        <div class="col-xs-12 col-sm-4" style="margin-bottom: 15px;">
+            <div class="panel panel-danger"><div class="panel-body text-center">
+                <h6 style="margin:0;">Transaksi Pribadi Bulan Ini</h6>
+                <h4 style="font-weight:700; margin:5px 0 0;">Rp {{ number_format($pengeluaranBulanIni ?? 0, 0, ',', '.') }}</h4>
+            </div></div>
+        </div>
+        <div class="col-xs-12 col-sm-4" style="margin-bottom: 15px;">
+            <div class="panel panel-warning"><div class="panel-body text-center">
+                <h6 style="margin:0;">Biaya Usaha Bulan Ini</h6>
+                <h4 style="font-weight:700; margin:5px 0 0;">Rp {{ number_format($biayaUsahaBulanIni ?? 0, 0, ',', '.') }}</h4>
+            </div></div>
+        </div>
+    </div>
+
+    {{-- Cashflow --}}
+    <div class="row" style="margin-bottom: 20px;">
+        <div class="col-xs-12">
+            <div class="panel panel-default">
+                <div class="panel-heading"><strong>Cashflow {{ date('Y') }}</strong></div>
+                <div class="panel-body"><canvas id="cashflowChart" height="80"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row" style="margin-bottom: 20px;">
+        <div class="col-xs-12 col-md-6" style="margin-bottom: 15px;">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <strong>Laba/Rugi per Jenis Usaha</strong> <small class="text-muted">bulan ini</small>
+                    <a href="{{ route('profit-loss.index') }}" class="pull-right" style="font-size:12px;">Lihat lengkap →</a>
+                </div>
+                <div class="panel-body" style="padding:0;">
+                    <table class="table table-condensed" style="margin:0;">
+                        <thead><tr><th>Usaha</th><th class="text-right">Laba</th></tr></thead>
+                        <tbody>
+                            @forelse($labaPerUsaha ?? [] as $row)
+                                <tr>
+                                    <td>{{ $row['name'] }}</td>
+                                    <td class="text-right"><strong class="{{ $row['laba'] < 0 ? 'text-danger' : 'text-success' }}">Rp {{ number_format($row['laba'], 0, ',', '.') }}</strong></td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="2" class="text-center text-muted">Belum ada data.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-md-6" style="margin-bottom: 15px;">
+            <div class="panel panel-default">
+                <div class="panel-heading"><strong>Top 5 Biaya Usaha</strong> <small class="text-muted">bulan ini</small></div>
+                <div class="panel-body" style="padding:0;">
+                    <table class="table table-condensed" style="margin:0;">
+                        <thead><tr><th>Aktivitas</th><th>Usaha</th><th class="text-right">Biaya</th></tr></thead>
+                        <tbody>
+                            @forelse($topAktivitas ?? [] as $act)
+                                <tr>
+                                    <td>{{ $act['name'] }}</td>
+                                    <td><small>{{ $act['category'] }}</small></td>
+                                    <td class="text-right text-danger">Rp {{ number_format($act['amount'], 0, ',', '.') }}</td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="3" class="text-center text-muted">Belum ada aktivitas.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if(($recurringDue ?? collect())->isNotEmpty())
+    <div class="alert alert-warning" style="margin-bottom: 15px;">
+        <strong><i class="fa fa-refresh"></i> Transaksi Berulang Jatuh Tempo:</strong>
+        <ul style="margin:8px 0 0; padding-left:18px;">
+            @foreach($recurringDue as $r)
+                <li><strong>{{ $r->name }}</strong> — Rp {{ number_format((float)$r->amount, 0, ',', '.') }} @if($r->next_due)({{ $r->next_due->translatedFormat('d M Y') }})@endif</li>
+            @endforeach
+        </ul>
+        <a href="{{ route('recurring-transactions.index') }}" class="btn btn-warning btn-xs">Kelola →</a>
+    </div>
+    @endif
+
+    <div style="margin-bottom: 15px;">
         <small class="text-muted">
-            Update terakhir transaksi:
-            <strong>
-                {{ $lastTrans ? $lastTrans->created_at->format('d M Y') : '-' }}
-            </strong>
+            Transaksi terakhir: <strong>{{ $lastTrans ? optional($lastTrans->transaction_date)->format('d M Y') : '-' }}</strong>
+            &nbsp;|&nbsp; Total: <strong>{{ $jumlahTransaksi }}</strong>
         </small>
     </div>
 
@@ -473,5 +566,32 @@ document.getElementById('yearFilter')
 
 document.getElementById('categoryFilter')
     .addEventListener('change', updatePieCharts);
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+(function() {
+    var ctx = document.getElementById('cashflowChart');
+    if (!ctx) return;
+    var data = @json($cashflowBulanan ?? []);
+    new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: data.map(function(d){ return d.bulan; }),
+            datasets: [
+                { label: 'Pemasukan', data: data.map(function(d){ return d.pemasukan; }), backgroundColor: 'rgba(40,167,69,0.7)' },
+                { label: 'Pengeluaran Pribadi', data: data.map(function(d){ return d.pengeluaran; }), backgroundColor: 'rgba(217,83,79,0.7)' },
+                { label: 'Biaya Usaha', data: data.map(function(d){ return d.biaya_usaha; }), backgroundColor: 'rgba(240,173,78,0.7)' },
+                { label: 'Laba', type: 'line', data: data.map(function(d){ return d.laba; }), borderColor: 'rgba(0,123,255,1)', borderWidth: 2, fill: false, tension: 0.3 }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { tooltip: { callbacks: { label: function(c){ return c.dataset.label+': Rp '+(c.parsed.y||0).toLocaleString('id-ID'); } } } },
+            scales: { y: { ticks: { callback: function(v){ return 'Rp '+v.toLocaleString('id-ID'); } } } }
+        }
+    });
+})();
 </script>
 @endpush

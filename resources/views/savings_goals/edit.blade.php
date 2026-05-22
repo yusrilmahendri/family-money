@@ -29,10 +29,10 @@
                 <a href="{{ route('savings-goals.index') }}" class="btn btn-default">Kembali</a>
             </form>
             <hr>
-            <form method="POST" action="{{ route('savings-goals.destroy', $goal) }}" onsubmit="return confirm('Hapus goal beserta semua setoran?');">
+            <form id="delete-goal-form" method="POST" action="{{ route('savings-goals.destroy', $goal) }}">
                 @csrf
                 @method('DELETE')
-                <button type="submit" class="btn btn-danger btn-sm">Hapus goal</button>
+                <button type="button" id="btn-delete-goal" class="btn btn-danger btn-sm">Hapus goal</button>
             </form>
         </div>
     </div>
@@ -53,6 +53,21 @@ document.getElementById('target_amount').addEventListener('keyup', function() {
     }
     rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
     this.value = rupiah ? 'Rp ' + rupiah : '';
+});
+
+document.getElementById('btn-delete-goal').addEventListener('click', function() {
+    swal({
+        title: 'Hapus goal ini?',
+        text: 'Semua setoran/contribusi akan ikut terhapus.',
+        icon: 'warning',
+        buttons: {
+            cancel: { text: 'Batal', value: null, visible: true },
+            confirm: { text: 'Ya, Hapus', value: true, className: 'btn-danger' }
+        },
+        dangerMode: true,
+    }).then(function(ok) {
+        if (ok) document.getElementById('delete-goal-form').submit();
+    });
 });
 </script>
 @endpush
