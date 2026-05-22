@@ -115,7 +115,7 @@ class DashboardController extends Controller
             ]);
 
         // Laba/rugi per jenis usaha bulan ini
-        $labaPerUsaha = $categories->map(function (Category $cat) use ($year, $month) {
+        $labaPerUsaha = $categories->map(function (Category $cat) use ($year, $month, $hasIncomes) {
             $pendapatan = $hasIncomes
                 ? (float) Income::where('category_id', $cat->id)
                     ->whereYear('income_date', $year)->whereMonth('income_date', $month)->sum('amount')
@@ -168,33 +168,42 @@ class DashboardController extends Controller
 
     public function filterSummary(Request $request)
     {
+        $hasIncomes = Schema::hasTable('incomes');
+
         $month = $request->month;
         $year = $request->year;
         $categoryId = $request->category;
 
         $saldoQuery = Saldo::query();
-        $incomeQuery = Income::query();
+        $incomeQuery = $hasIncomes ? Income::query() : null;
         $pengeluaranQuery = Transaction::query();
 
         if ($month) {
-            $incomeQuery->whereMonth('income_date', $month);
+            if ($incomeQuery) {
+                $incomeQuery->whereMonth('income_date', $month);
+            }
             $pengeluaranQuery->whereMonth('transaction_date', $month);
             $saldoQuery->whereMonth('created_at', $month);
         }
 
         if ($year) {
-            $incomeQuery->whereYear('income_date', $year);
+            if ($incomeQuery) {
+                $incomeQuery->whereYear('income_date', $year);
+            }
             $pengeluaranQuery->whereYear('transaction_date', $year);
             $saldoQuery->whereYear('created_at', $year);
         }
 
         if ($categoryId) {
             $saldoQuery->where('category_id', $categoryId);
-            $incomeQuery->where('category_id', $categoryId);
+            if ($incomeQuery) {
+                $incomeQuery->where('category_id', $categoryId);
+            }
             $pengeluaranQuery->where('category_id', $categoryId);
         }
 
-        $totalSaldo = (float) $saldoQuery->sum('amount') + (float) $incomeQuery->sum('amount');
+        $totalPemasukan = $incomeQuery ? (float) $incomeQuery->sum('amount') : 0;
+        $totalSaldo = (float) $saldoQuery->sum('amount') + $totalPemasukan;
         $totalPengeluaran = (float) $pengeluaranQuery->sum('amount');
         $sisaSaldo = $totalSaldo - $totalPengeluaran;
 
@@ -207,14 +216,18 @@ class DashboardController extends Controller
         $categories = Category::when($categoryId, fn ($q) => $q->where('id', $categoryId))->get();
 
         foreach ($categories as $category) {
+            $pemasukanKategori = $hasIncomes
+                ? (float) Income::where('category_id', $category->id)
+                    ->when($month, fn ($q) => $q->whereMonth('income_date', $month))
+                    ->when($year, fn ($q) => $q->whereYear('income_date', $year))
+                    ->sum('amount')
+                : 0;
+
             $total = (float) Saldo::where('category_id', $category->id)
                 ->when($month, fn ($q) => $q->whereMonth('created_at', $month))
                 ->when($year, fn ($q) => $q->whereYear('created_at', $year))
                 ->sum('amount')
-                + (float) Income::where('category_id', $category->id)
-                    ->when($month, fn ($q) => $q->whereMonth('income_date', $month))
-                    ->when($year, fn ($q) => $q->whereYear('income_date', $year))
-                    ->sum('amount');
+                + $pemasukanKategori;
 
             if ($total > 0) {
                 $saldoPerKategori[] = ['name' => $category->name, 'y' => $total];
@@ -250,7 +263,10 @@ class DashboardController extends Controller
 
     private function getDashboardData()
     {
-        $totalSaldo = (float) Saldo::sum('amount') + (float) Income::sum('amount');
+        $hasIncomes = Schema::hasTable('incomes');
+
+        $totalSaldo = (float) Saldo::sum('amount')
+            + ($hasIncomes ? (float) Income::sum('amount') : 0);
         $totalPengeluaran = (float) Transaction::sum('amount');
         $sisaSaldo = $totalSaldo - $totalPengeluaran;
         $jumlahTransaksi = Transaction::count();
@@ -267,7 +283,7 @@ class DashboardController extends Controller
         $saldoPerKategori = [];
         foreach ($categories as $category) {
             $totalSaldoCategory = (float) Saldo::where('category_id', $category->id)->sum('amount')
-                + (float) Income::where('category_id', $category->id)->sum('amount');
+                + ($hasIncomes ? (float) Income::where('category_id', $category->id)->sum('amount') : 0);
 
             if ($totalSaldoCategory > 0) {
                 $saldoPerKategori[] = ['name' => $category->name, 'y' => $totalSaldoCategory];
