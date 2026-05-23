@@ -2,50 +2,75 @@
 
 @section('content')
 
-    <div class="row mt-5 justify-content-center" style="margin-top: 40px; padding-left: 15px; padding-right: 15px;">
-        <!-- Total Saldo Card -->
-        <div class="col-lg-6 col-md-6 col-sm-12" style="margin-left: 20px; margin-right: 20px; margin-top: 20px; width: calc(100% - 40px);">
-            <div class="card shadow-lg" style="border: 2px solid #f0f0f0; box-shadow: 0px 2px 8px rgba(0,0,0,0.05); border-radius: 12px;">
-                <div class="card-body text-md-left" style="border: none; padding: 25px;">
+    <div class="saldo-page" style="padding: 15px;">
 
-                    <h5 class="card-title text-muted">Total Saldo Yang Masuk</h5>
-
-                    <h2 class="font-weight-bold text-primary">
-                        Rp {{ number_format($total_saldo, 0, ',', '.') }}
-                    </h2>
-
-                    <p class="mb-0 text-muted">
-                        Update terakhir:
-                        {{ $updated_saldo ? \Carbon\Carbon::parse($updated_saldo->periode_saldo)->format('d M Y') : '-' }}
-                    </p>
-
+        {{-- Ringkasan global (sinkron dengan halaman Anggaran) --}}
+        <div class="row row-eq" style="margin-top: 5px;">
+            <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 15px;">
+                <div class="summary-card" style="border: 2px solid #f0f0f0; box-shadow: 0px 2px 8px rgba(0,0,0,0.05); border-radius: 12px; padding: 15px; background: #fff; height: 100%;">
+                    <h6 class="text-muted" style="margin: 0 0 8px; font-size: 13px;">Saldo Manual</h6>
+                    <h3 class="text-primary" style="font-weight: 700; margin: 0; font-size: 22px; word-break: break-all;">
+                        Rp {{ number_format($total_saldo_manual ?? 0, 0, ',', '.') }}
+                    </h3>
+                    <small class="text-muted">Dari halaman Saldo</small>
+                </div>
+            </div>
+            <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 15px;">
+                <div class="summary-card" style="border: 2px solid #f0f0f0; box-shadow: 0px 2px 8px rgba(0,0,0,0.05); border-radius: 12px; padding: 15px; background: #fff; height: 100%;">
+                    <h6 class="text-muted" style="margin: 0 0 8px; font-size: 13px;">Pemasukan Usaha</h6>
+                    <h3 class="text-info" style="font-weight: 700; margin: 0; font-size: 22px; word-break: break-all;">
+                        Rp {{ number_format($total_pemasukan ?? 0, 0, ',', '.') }}
+                    </h3>
+                    <small class="text-muted">Dari menu Pemasukan Usaha</small>
+                </div>
+            </div>
+            <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 15px;">
+                <div class="summary-card" style="border: 2px solid #f0f0f0; box-shadow: 0px 2px 8px rgba(0,0,0,0.05); border-radius: 12px; padding: 15px; background: #fff; height: 100%;">
+                    <h6 class="text-muted" style="margin: 0 0 8px; font-size: 13px;">Total Dana</h6>
+                    <h3 class="text-success" style="font-weight: 700; margin: 0; font-size: 22px; word-break: break-all;">
+                        Rp {{ number_format($total_dana ?? 0, 0, ',', '.') }}
+                    </h3>
+                    <small class="text-muted">Saldo + Pemasukan</small>
+                </div>
+            </div>
+            <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 15px;">
+                <div class="summary-card" style="border: 2px solid #f0f0f0; box-shadow: 0px 2px 8px rgba(0,0,0,0.05); border-radius: 12px; padding: 15px; background: #fff; height: 100%;">
+                    <h6 class="text-muted" style="margin: 0 0 8px; font-size: 13px;">Saldo Bebas</h6>
+                    <h3 class="{{ ($saldo_bebas ?? 0) < 0 ? 'text-danger' : 'text-success' }}" style="font-weight: 700; margin: 0; font-size: 22px; word-break: break-all;">
+                        Rp {{ number_format($saldo_bebas ?? 0, 0, ',', '.') }}
+                    </h3>
+                    <small class="text-muted">Dana − Anggaran − Trx Pribadi</small>
                 </div>
             </div>
         </div>
 
-        <!-- Filter Kategori -->
-        <div class="col-lg-6 col-md-6 col-sm-12"    style="margin-left: 20px; margin-right: 20px; margin-top: 20px; width: calc(100% - 40px);">
-            <!-- Dynamic Category Card -->
-            <div id="categoryCard" style="display: none; margin-bottom: 20px; margin-top: 20px;">
-                <div class="card shadow-lg" style="border: 2px solid #f0f0f0; box-shadow: 0px 2px 8px rgba(0,0,0,0.05); border-radius: 12px;">
-                    <div class="card-body text-md-left" style="border: none; padding: 25px;">
-                        <h5 class="card-title text-muted">Kategori: <span id="categoryName" class="font-weight-bold"></span></h5>
-                        <h2 class="font-weight-bold text-success">
-                            <span id="categorySaldo">Rp 0</span>
-                        </h2>
-                        <p class="mb-0 text-muted">
-                            Total saldo masuk untuk kategori ini
-                        </p>
-                    </div>
+        {{-- Update terakhir & info kategori dinamis --}}
+        <div class="row">
+            <div class="col-xs-12 col-md-6" style="margin-bottom: 15px;">
+                <div class="summary-card" style="border: 2px solid #f0f0f0; box-shadow: 0px 2px 8px rgba(0,0,0,0.05); border-radius: 12px; padding: 15px; background: #fff;">
+                    <h6 class="text-muted" style="margin: 0 0 5px; font-size: 13px;">Update Terakhir</h6>
+                    <p style="margin: 0; font-size: 14px;">
+                        {{ $updated_saldo ? \Carbon\Carbon::parse($updated_saldo->periode_saldo)->translatedFormat('d F Y') : '-' }}
+                    </p>
+                </div>
+            </div>
+            <div class="col-xs-12 col-md-6" id="categoryCardWrap" style="display: none; margin-bottom: 15px;">
+                <div id="categoryCard" class="summary-card" style="border: 2px solid #f0f0f0; box-shadow: 0px 2px 8px rgba(0,0,0,0.05); border-radius: 12px; padding: 15px; background: #fff;">
+                    <h6 class="text-muted" style="margin: 0 0 6px; font-size: 13px;">
+                        Kategori: <span id="categoryName" style="font-weight: 700; color: #333;"></span>
+                    </h6>
+                    <h3 class="text-success" style="font-weight: 700; margin: 0; font-size: 20px;">
+                        <span id="categorySaldo">Rp 0</span>
+                    </h3>
+                    <small class="text-muted">Total saldo manual untuk kategori ini</small>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="container-fluid" style="padding-left: 15px; padding-right: 15px;">
-        <div class="row" style="margin-top: 40px; margin-bottom: 20px;">
-            <!-- Filter Section -->
-            <div class="col-lg-8 col-md-12 col-sm-12" style="margin-bottom: 15px;">
+    <div class="saldo-page" style="padding: 0 15px;">
+        <div class="row" style="margin-bottom: 15px;">
+            <div class="col-xs-12 col-lg-7" style="margin-bottom: 10px;">
                 <label for="categoryFilter" style="font-weight: 600; margin-bottom: 8px;">Filter Berdasarkan Kategori</label>
                 <select class="form-control" id="categoryFilter" style="border-radius: 8px;">
                     <option value="">-- Pilih Kategori Saldo --</option>
@@ -55,26 +80,25 @@
                 </select>
             </div>
 
-            <!-- Buttons Section -->
-            <div class="col-lg-4 col-md-12 col-sm-12" style="margin-bottom: 15px;">
+            <div class="col-xs-12 col-lg-5" style="margin-bottom: 10px;">
                 <label style="font-weight: 600; margin-bottom: 8px; display: block;">Aksi</label>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                          <a href="{{ route('saldos.export.excel') }}"
-                              class="btn btn-success btn-sm"
-                              style="flex: 1; min-width: 110px; margin-bottom: 5px;">
-                              <i class="fa fa-file-excel-o"></i> Excel
-                          </a>
-                          <a href="{{ route('saldos.export.pdf') }}"
-                              class="btn btn-danger btn-sm"
-                              target="_blank"
-                              style="flex: 1; min-width: 110px; margin-bottom: 5px;">
-                              <i class="fa fa-file-pdf-o"></i> PDF
-                          </a>
-                          <a href="{{ route('saldos.create') }}"
-                              class="btn btn-primary btn-sm"
-                              style="flex: 1; min-width: 110px; margin-bottom: 5px;">
-                              <i class="fa fa-plus"></i> Tambah
-                          </a>
+                    <a href="{{ route('saldos.export.excel') }}"
+                       class="btn btn-success btn-sm"
+                       style="flex: 1; min-width: 100px; margin-bottom: 5px;">
+                       <i class="fa fa-file-excel-o"></i> Excel
+                    </a>
+                    <a href="{{ route('saldos.export.pdf') }}"
+                       class="btn btn-danger btn-sm"
+                       target="_blank"
+                       style="flex: 1; min-width: 100px; margin-bottom: 5px;">
+                       <i class="fa fa-file-pdf-o"></i> PDF
+                    </a>
+                    <a href="{{ route('saldos.create') }}"
+                       class="btn btn-primary btn-sm"
+                       style="flex: 1; min-width: 100px; margin-bottom: 5px;">
+                       <i class="fa fa-plus"></i> Tambah
+                    </a>
                 </div>
             </div>
         </div>
@@ -97,17 +121,17 @@
         </div>
     </div>
      <!-- tabel -->
-    <div class="container-fluid" style="padding-left: 15px; padding-right: 15px; margin-top: 20px;">
-        <div class="table-responsive">
-            <table class="table table-bordered table-hover" id="dataTable">
+    <div class="saldo-page" style="padding: 0 15px;">
+        <div class="table-responsive" style="-webkit-overflow-scrolling: touch;">
+            <table class="table table-bordered table-hover" id="dataTable" style="width: 100%; min-width: 700px;">
                 <thead>
                     <tr>
                         <th>Kategori</th>
                         <th>Saldo</th>
                         <th>Keterangan</th>
                         <th>Nota</th>
-                        <th>Tanggal & Waktu Input</th>
-                        <th>Tindakan</th>
+                        <th>Tanggal &amp; Waktu Input</th>
+                        <th style="width: 180px;">Tindakan</th>
                     </tr>
                 </thead>
             </table>
@@ -130,12 +154,48 @@
     <!-- alertnya boostrap notify -->
     @include('templates.partials.alerts')
 
+    <style>
+        .saldo-page .summary-card { display: block; }
+        @media (max-width: 767px) {
+            .saldo-page { padding: 10px !important; }
+            .saldo-page .summary-card h3 { font-size: 18px !important; }
+
+            .dataTables_wrapper .dataTables_length,
+            .dataTables_wrapper .dataTables_filter,
+            .dataTables_wrapper .dataTables_info,
+            .dataTables_wrapper .dataTables_paginate {
+                float: none !important;
+                text-align: left !important;
+                margin-top: 8px;
+            }
+            .dataTables_filter input { width: 100% !important; margin-left: 0 !important; }
+        }
+        /* Equal-height row (Bootstrap 3 tidak punya bawaan ini) */
+        @media (min-width: 768px) {
+            .saldo-page .row.row-eq {
+                display: -webkit-flex;
+                display: flex;
+                flex-wrap: wrap;
+            }
+            .saldo-page .row.row-eq > [class*='col-'] {
+                display: -webkit-flex;
+                display: flex;
+            }
+            .saldo-page .row.row-eq > [class*='col-'] > .summary-card {
+                width: 100%;
+                -webkit-flex: 1;
+                flex: 1;
+            }
+        }
+    </style>
 
  <script>
         $(function(){
             $('#dataTable').DataTable({
                 processing: true,
                 serverSide: true,
+                responsive: true,
+                autoWidth: false,
                 ajax: "{{ route('saldos.data') }}",
                 columns: [
                     {data: 'category'},
@@ -158,22 +218,19 @@
                 const categoryName = $(this).find('option:selected').data('name');
 
                 if (categoryId) {
-                    // Fetch saldo for selected category
                     fetch(`/api/v1/saldos/category/${categoryId}`)
                         .then(response => response.json())
                         .then(data => {
-                            // Update card
                             $('#categoryName').text(categoryName);
                             $('#categorySaldo').text(formatRupiah(data.total));
-                            $('#categoryCard').slideDown();
+                            $('#categoryCardWrap').slideDown();
                         })
                         .catch(error => {
                             console.error('Error:', error);
                             alert('Gagal memuat data kategori');
                         });
                 } else {
-                    // Hide card when no category selected
-                    $('#categoryCard').slideUp();
+                    $('#categoryCardWrap').slideUp();
                 }
             });
         });

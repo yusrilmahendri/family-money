@@ -3,9 +3,13 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Yajra\DataTables\Facades\DataTables;
 use App\Models\Saldo;
 use App\Models\Category;
+use App\Models\Income;
+use App\Models\Budget;
+use App\Models\Transaction;
 use App\Exports\SaldoExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -52,12 +56,28 @@ class SaldoController extends Controller
     {
         $updated_saldo = Saldo::latest()->first(); // ambil transaksi saldo terbaru
 
+        $hasIncomes = Schema::hasTable('incomes');
+
+        $totalSaldoManual = (float) Saldo::sum('amount');
+        $totalPemasukan   = $hasIncomes ? (float) Income::sum('amount') : 0;
+        $totalDana        = $totalSaldoManual + $totalPemasukan;
+        $totalDianggarkan = (float) Budget::sum('amount');
+        $totalTransaksi   = (float) Transaction::sum('amount');
+        $saldoBebas       = $totalDana - $totalDianggarkan - $totalTransaksi;
+
         return view('saldo.index', [
-            'Transaksi'     => Saldo::all(),
-            'total_saldo'   => Saldo::sum('amount'),
-            'updated_saldo' => $updated_saldo,
-            'title'         => 'Saldo List',
-            'categories'    => Category::all(),
+            'Transaksi'          => Saldo::all(),
+            // sengaja sama dengan label di halaman Anggaran agar konsisten
+            'total_saldo'        => $totalDana,
+            'total_saldo_manual' => $totalSaldoManual,
+            'total_pemasukan'    => $totalPemasukan,
+            'total_dana'         => $totalDana,
+            'total_dianggarkan'  => $totalDianggarkan,
+            'total_transaksi'    => $totalTransaksi,
+            'saldo_bebas'        => $saldoBebas,
+            'updated_saldo'      => $updated_saldo,
+            'title'              => 'Saldo List',
+            'categories'         => Category::all(),
         ]);
     }
 
