@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DebtController;
 use App\Http\Controllers\FinancialPlannerController;
 use App\Http\Controllers\IncomeController;
+use App\Http\Controllers\OperationalExpenseController;
 use App\Http\Controllers\ProfitLossController;
 use App\Http\Controllers\RecurringTransactionController;
 use App\Http\Controllers\SaldoController;
@@ -56,6 +57,14 @@ Route::post('savings-goals/{savings_goal}/contributions', [SavingsGoalController
 // Pemasukan Usaha
 Route::get('/api/v1/incomes', [IncomeController::class, 'data'])->name('incomes.data');
 Route::resource('incomes', IncomeController::class)->except(['show']);
+
+// Biaya Operasional (alias dari Aktivitas Anggaran, untuk akses cepat)
+Route::get('/api/v1/operational-expenses', [OperationalExpenseController::class, 'data'])->name('operational.data');
+Route::get('/api/v1/operational-expenses/budget-info/{budget}', [OperationalExpenseController::class, 'budgetInfo'])->name('operational.budget_info');
+Route::resource('operational-expenses', OperationalExpenseController::class)
+    ->parameters(['operational-expenses' => 'operational'])
+    ->names('operational')
+    ->except(['show']);
 
 // Laporan Laba/Rugi
 Route::get('/laba-rugi', [ProfitLossController::class, 'index'])->name('profit-loss.index');

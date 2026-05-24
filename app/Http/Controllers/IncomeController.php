@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Income;
+use App\Models\Saldo;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Yajra\DataTables\Facades\DataTables;
 
 class IncomeController extends Controller
@@ -69,23 +72,30 @@ class IncomeController extends Controller
             'source' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'string'],
             'income_date' => ['required', 'date'],
-            'category_id' => ['nullable', 'exists:categories,id'],
+            'category_id' => ['required', 'exists:categories,id'],
             'description' => ['nullable', 'string', 'max:255'],
         ], [
             'source.required' => 'Sumber pemasukan wajib diisi.',
             'amount.required' => 'Jumlah pemasukan wajib diisi.',
             'income_date.required' => 'Tanggal pemasukan wajib diisi.',
+            'category_id.required' => 'Jenis usaha wajib dipilih (untuk auto-sync saldo).',
         ]);
 
-        Income::create([
-            'category_id' => $validated['category_id'] ?? null,
-            'source' => $validated['source'],
-            'amount' => (float) $this->parseRupiah($validated['amount']),
-            'income_date' => $validated['income_date'],
-            'description' => $validated['description'] ?? null,
-        ]);
+        $amount = (float) $this->parseRupiah($validated['amount']);
 
-        return redirect()->route('incomes.index')->with('success', 'Pemasukan berhasil dicatat. Saldo bertambah.');
+        DB::transaction(function () use ($validated, $amount) {
+            $income = Income::create([
+                'category_id' => $validated['category_id'],
+                'source' => $validated['source'],
+                'amount' => $amount,
+                'income_date' => $validated['income_date'],
+                'description' => $validated['description'] ?? null,
+            ]);
+
+            $this->syncSaldoFromIncome($income);
+        });
+
+        return redirect()->route('incomes.index')->with('success', 'Pemasukan dicatat & saldo otomatis bertambah.');
     }
 
     public function edit(Income $income)
@@ -103,26 +113,60 @@ class IncomeController extends Controller
             'source' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'string'],
             'income_date' => ['required', 'date'],
-            'category_id' => ['nullable', 'exists:categories,id'],
+            'category_id' => ['required', 'exists:categories,id'],
             'description' => ['nullable', 'string', 'max:255'],
+        ], [
+            'category_id.required' => 'Jenis usaha wajib dipilih (untuk auto-sync saldo).',
         ]);
 
-        $income->update([
-            'category_id' => $validated['category_id'] ?? null,
-            'source' => $validated['source'],
-            'amount' => (float) $this->parseRupiah($validated['amount']),
-            'income_date' => $validated['income_date'],
-            'description' => $validated['description'] ?? null,
-        ]);
+        $amount = (float) $this->parseRupiah($validated['amount']);
 
-        return redirect()->route('incomes.index')->with('info', 'Pemasukan diperbarui.');
+        DB::transaction(function () use ($income, $validated, $amount) {
+            $income->update([
+                'category_id' => $validated['category_id'],
+                'source' => $validated['source'],
+                'amount' => $amount,
+                'income_date' => $validated['income_date'],
+                'description' => $validated['description'] ?? null,
+            ]);
+
+            $this->syncSaldoFromIncome($income);
+        });
+
+        return redirect()->route('incomes.index')->with('info', 'Pemasukan diperbarui & saldo otomatis disesuaikan.');
     }
 
     public function destroy(Income $income)
     {
-        $income->delete();
+        DB::transaction(function () use ($income) {
+            if (Schema::hasColumn('saldos', 'income_id')) {
+                Saldo::where('income_id', $income->id)->delete();
+            }
+            $income->delete();
+        });
 
-        return redirect()->route('incomes.index')->with('danger', 'Pemasukan dihapus.');
+        return redirect()->route('incomes.index')->with('danger', 'Pemasukan dihapus & saldo otomatis ikut hilang.');
+    }
+
+    /**
+     * Pastikan ada satu record Saldo yang mencerminkan Pemasukan ini.
+     * - Kalau belum ada → buat baru.
+     * - Kalau sudah ada → update jumlah/kategori/periode.
+     */
+    private function syncSaldoFromIncome(Income $income): void
+    {
+        if (! Schema::hasColumn('saldos', 'income_id')) {
+            return;
+        }
+
+        $saldo = Saldo::firstOrNew(['income_id' => $income->id]);
+        $saldo->fill([
+            'category_id' => $income->category_id,
+            'amount' => (float) $income->amount,
+            'description' => '[Pemasukan] '.$income->source.($income->description ? ' — '.$income->description : ''),
+            'periode_saldo' => $income->income_date,
+        ]);
+        $saldo->save();
     }
 
     private function parseRupiah(string $raw): string

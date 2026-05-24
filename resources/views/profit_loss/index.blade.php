@@ -132,7 +132,9 @@
             </table>
         </div>
         <small class="text-muted" style="display:block; margin-top:8px;">
-            <strong>Pendapatan</strong> = total pemasukan usaha. <strong>Biaya</strong> = total aktivitas anggaran (upah, bahan, dll.) pada periode tsb.
+            <strong>Pendapatan</strong> diambil dari menu <a href="{{ route('incomes.index') }}">Pemasukan Usaha</a>.
+            <strong>Biaya Operasional</strong> diambil dari menu <a href="{{ route('operational.index') }}">Biaya Operasional</a>
+            (gaji, upah, pupuk, BBM, dll.) — yaitu pengeluaran dari sebuah Anggaran.
         </small>
     </div>
 

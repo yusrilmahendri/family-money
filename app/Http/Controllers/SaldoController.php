@@ -24,7 +24,11 @@ class SaldoController extends Controller
 
         return DataTables::of($saldo)
             ->addColumn('category', function ($model) {
-                return $model->category ? $model->category->name : '-';
+                $name = $model->category ? $model->category->name : '-';
+                if (!empty($model->income_id)) {
+                    $name .= ' <span class="label label-info" style="font-size:10px;">AUTO</span>';
+                }
+                return $name;
             })
             ->addColumn('amount', function ($model) {
                 return 'Rp ' . number_format($model->amount, 0, ',', '.');
@@ -45,7 +49,7 @@ class SaldoController extends Controller
             })
             ->addColumn('action', 'saldo.action')
             ->addIndexColumn()
-            ->rawColumns(['action','nota_image'])
+            ->rawColumns(['action','nota_image','category'])
             ->toJson();
     }
 
@@ -56,18 +60,26 @@ class SaldoController extends Controller
     {
         $updated_saldo = Saldo::latest()->first(); // ambil transaksi saldo terbaru
 
-        $hasIncomes = Schema::hasTable('incomes');
+        $hasIncomeIdColumn = Schema::hasColumn('saldos', 'income_id');
 
-        $totalSaldoManual = (float) Saldo::sum('amount');
-        $totalPemasukan   = $hasIncomes ? (float) Income::sum('amount') : 0;
-        $totalDana        = $totalSaldoManual + $totalPemasukan;
+        // Pemasukan Usaha SUDAH auto-sinkron ke tabel saldos (lewat IncomeController).
+        // Jadi:
+        //   - Saldo Manual  = saldo yang income_id-nya NULL
+        //   - Pemasukan Usaha = saldo yang income_id-nya TIDAK NULL
+        //   - Total Dana    = Saldo::sum() (semua)
+        $totalSaldoManual = $hasIncomeIdColumn
+            ? (float) Saldo::whereNull('income_id')->sum('amount')
+            : (float) Saldo::sum('amount');
+        $totalPemasukan   = $hasIncomeIdColumn
+            ? (float) Saldo::whereNotNull('income_id')->sum('amount')
+            : 0;
+        $totalDana        = (float) Saldo::sum('amount');
         $totalDianggarkan = (float) Budget::sum('amount');
         $totalTransaksi   = (float) Transaction::sum('amount');
         $saldoBebas       = $totalDana - $totalDianggarkan - $totalTransaksi;
 
         return view('saldo.index', [
             'Transaksi'          => Saldo::all(),
-            // sengaja sama dengan label di halaman Anggaran agar konsisten
             'total_saldo'        => $totalDana,
             'total_saldo_manual' => $totalSaldoManual,
             'total_pemasukan'    => $totalPemasukan,
@@ -142,9 +154,16 @@ class SaldoController extends Controller
      */
     public function edit(string $id)
     {
+        $saldo = Saldo::findOrFail($id);
+
+        if (!empty($saldo->income_id)) {
+            return redirect()->route('incomes.edit', $saldo->income_id)
+                ->with('info', 'Saldo ini berasal dari Pemasukan Usaha. Silakan edit dari halaman Pemasukan.');
+        }
+
         return view('saldo.edit', [
             'title' => 'Edit Saldo',
-            'Saldo' => Saldo::findOrFail($id),
+            'Saldo' => $saldo,
             'categories' => Category::all(),
         ]);
     }
@@ -260,8 +279,14 @@ class SaldoController extends Controller
     public function destroy(string $id)
     {
         $saldo = Saldo::findOrFail($id);
+
+        if (!empty($saldo->income_id)) {
+            return redirect()->route('saldos.index')
+                ->with('danger', 'Saldo ini berasal dari Pemasukan Usaha. Hapus dari halaman Pemasukan Usaha agar konsisten.');
+        }
+
         $saldo->delete();
         return redirect()->route('saldos.index')
-        ->with('danger','Data Saldo Berhasil dihapuskan');
+            ->with('danger', 'Data Saldo Berhasil dihapuskan');
     }
 }

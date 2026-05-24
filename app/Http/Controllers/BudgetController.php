@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Budget;
 use App\Models\BudgetActivity;
 use App\Models\Category;
-use App\Models\Income;
 use App\Models\Saldo;
 use App\Models\Transaction;
 use Carbon\Carbon;
@@ -50,7 +49,9 @@ class BudgetController extends Controller
         $now = Carbon::now();
 
         // Ringkasan global
-        $totalSaldo = (float) Saldo::sum('amount') + (float) Income::sum('amount');
+        // Catatan: Pemasukan Usaha (Income) sudah auto-tersinkron ke tabel saldos
+        // melalui IncomeController, jadi cukup pakai Saldo::sum() agar tidak double-count.
+        $totalSaldo = (float) Saldo::sum('amount');
         $totalDianggarkan = (float) Budget::sum('amount');
         $totalTransaksi = (float) Transaction::sum('amount');
         $saldoBebas = $totalSaldo - $totalDianggarkan - $totalTransaksi;
@@ -77,8 +78,7 @@ class BudgetController extends Controller
         $rincianPerKategori = Category::orderBy('name')
             ->get()
             ->map(function (Category $cat) {
-                $saldo = (float) Saldo::where('category_id', $cat->id)->sum('amount')
-                    + (float) Income::where('category_id', $cat->id)->sum('amount');
+                $saldo = (float) Saldo::where('category_id', $cat->id)->sum('amount');
                 $anggaran = (float) Budget::where('category_id', $cat->id)->sum('amount');
                 $aktivitas = (float) BudgetActivity::whereIn(
                     'budget_id',
@@ -161,8 +161,7 @@ class BudgetController extends Controller
         $anggaranKategoriTotal = 0.0;
         $transaksiKategoriTotal = 0.0;
         if ($budget->category_id) {
-            $saldoKategori = (float) Saldo::where('category_id', $budget->category_id)->sum('amount')
-                + (float) Income::where('category_id', $budget->category_id)->sum('amount');
+            $saldoKategori = (float) Saldo::where('category_id', $budget->category_id)->sum('amount');
             $anggaranKategoriTotal = (float) Budget::where('category_id', $budget->category_id)->sum('amount');
             $transaksiKategoriTotal = (float) Transaction::where('category_id', $budget->category_id)->sum('amount');
         }
@@ -321,8 +320,7 @@ class BudgetController extends Controller
     {
         $excludeBudgetId = $request->query('exclude_budget_id');
 
-        $saldo = (float) Saldo::where('category_id', $category->id)->sum('amount')
-            + (float) Income::where('category_id', $category->id)->sum('amount');
+        $saldo = (float) Saldo::where('category_id', $category->id)->sum('amount');
 
         $budgetQuery = Budget::where('category_id', $category->id);
         if ($excludeBudgetId) {
@@ -350,8 +348,7 @@ class BudgetController extends Controller
 
     private function ensureSaldoEnough(int $categoryId, float $amount, ?int $excludeBudgetId = null): void
     {
-        $saldo = (float) Saldo::where('category_id', $categoryId)->sum('amount')
-            + (float) Income::where('category_id', $categoryId)->sum('amount');
+        $saldo = (float) Saldo::where('category_id', $categoryId)->sum('amount');
 
         $budgetQuery = Budget::where('category_id', $categoryId);
         if ($excludeBudgetId) {

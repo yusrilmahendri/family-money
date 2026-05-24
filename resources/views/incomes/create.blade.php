@@ -11,13 +11,14 @@
                 @csrf
 
                 <div class="form-group @error('category_id') has-error @enderror">
-                    <label for="category_id">Jenis Usaha <small class="text-muted">(opsional)</small></label>
-                    <select class="form-control" name="category_id" id="category_id">
-                        <option value="">— Tanpa kategori (pemasukan umum) —</option>
+                    <label for="category_id">Jenis Usaha <span class="text-danger">*</span></label>
+                    <select class="form-control" name="category_id" id="category_id" required>
+                        <option value="">— Pilih jenis usaha —</option>
                         @foreach($categories as $category)
                             <option value="{{ $category->id }}" @selected(old('category_id') == $category->id)>{{ $category->name }}</option>
                         @endforeach
                     </select>
+                    <small class="text-muted">Saldo jenis usaha ini akan otomatis bertambah sebesar pemasukan.</small>
                     @error('category_id')
                         <small class="text-danger">{{ $message }}</small>
                     @enderror

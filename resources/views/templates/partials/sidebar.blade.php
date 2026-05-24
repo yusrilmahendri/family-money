@@ -52,6 +52,12 @@
 				Pemasukan Usaha</a>
 		</li>
 
+		<li class="{{ request()->is('operational-expenses*') ? 'active' : '' }}">
+			<a href="{{ route('operational.index') }}">
+				<em class="fa fa-money">&nbsp;</em>
+				Biaya Operasional</a>
+		</li>
+
 		<li class="{{ request()->is('debts*') ? 'active' : '' }}">
 			<a href="{{ route('debts.index') }}">
 				<em class="fa fa-credit-card">&nbsp;</em>

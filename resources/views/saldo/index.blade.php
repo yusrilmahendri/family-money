@@ -21,7 +21,7 @@
                     <h3 class="text-info" style="font-weight: 700; margin: 0; font-size: 22px; word-break: break-all;">
                         Rp {{ number_format($total_pemasukan ?? 0, 0, ',', '.') }}
                     </h3>
-                    <small class="text-muted">Dari menu Pemasukan Usaha</small>
+                    <small class="text-muted">Auto-sync dari Pemasukan Usaha</small>
                 </div>
             </div>
             <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 15px;">
@@ -30,7 +30,7 @@
                     <h3 class="text-success" style="font-weight: 700; margin: 0; font-size: 22px; word-break: break-all;">
                         Rp {{ number_format($total_dana ?? 0, 0, ',', '.') }}
                     </h3>
-                    <small class="text-muted">Saldo + Pemasukan</small>
+                    <small class="text-muted">Total seluruh saldo (manual + auto)</small>
                 </div>
             </div>
             <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 15px;">

@@ -41,9 +41,15 @@ class DashboardController extends Controller
         $year = $now->year;
         $month = $now->month;
 
-        $totalSaldoMasuk = (float) Saldo::sum('amount');
-        $totalPemasukan = $hasIncomes ? (float) Income::sum('amount') : 0;
-        $totalSaldo = $totalSaldoMasuk + $totalPemasukan;
+        // Pemasukan sudah auto-sync ke tabel saldos lewat IncomeController.
+        $hasIncomeIdColumn = Schema::hasColumn('saldos', 'income_id');
+        $totalSaldoMasuk   = $hasIncomeIdColumn
+            ? (float) Saldo::whereNull('income_id')->sum('amount')
+            : (float) Saldo::sum('amount');
+        $totalPemasukan    = $hasIncomeIdColumn
+            ? (float) Saldo::whereNotNull('income_id')->sum('amount')
+            : ($hasIncomes ? (float) Income::sum('amount') : 0);
+        $totalSaldo = (float) Saldo::sum('amount');
         $totalPengeluaran = (float) Transaction::sum('amount');
         $totalAnggaran = (float) Budget::sum('amount');
         $sisaSaldo = $totalSaldo - $totalAnggaran - $totalPengeluaran;
@@ -85,11 +91,10 @@ class DashboardController extends Controller
             'total' => $c['pengeluaran'],
         ], $cashflowBulanan);
 
-        // Saldo per kategori (saldo + pemasukan)
+        // Saldo per kategori (Saldo sudah termasuk pemasukan auto-sync)
         $saldoPerKategori = [];
         foreach ($categories as $category) {
-            $total = (float) Saldo::where('category_id', $category->id)->sum('amount')
-                + ($hasIncomes ? (float) Income::where('category_id', $category->id)->sum('amount') : 0);
+            $total = (float) Saldo::where('category_id', $category->id)->sum('amount');
 
             if ($total > 0) {
                 $saldoPerKategori[] = ['name' => $category->name, 'y' => $total];
@@ -174,8 +179,11 @@ class DashboardController extends Controller
         $year = $request->year;
         $categoryId = $request->category;
 
+        // Setelah auto-sync, semua "uang masuk" sudah ada di Saldo.
+        // Pakai Saldo untuk total dana, Income hanya untuk perhitungan pendapatan
+        // khusus (laporan), jadi tidak perlu ditambahkan di sini.
         $saldoQuery = Saldo::query();
-        $incomeQuery = $hasIncomes ? Income::query() : null;
+        $incomeQuery = null;
         $pengeluaranQuery = Transaction::query();
 
         if ($month) {
@@ -263,10 +271,8 @@ class DashboardController extends Controller
 
     private function getDashboardData()
     {
-        $hasIncomes = Schema::hasTable('incomes');
-
-        $totalSaldo = (float) Saldo::sum('amount')
-            + ($hasIncomes ? (float) Income::sum('amount') : 0);
+        // Saldo sudah termasuk pemasukan auto-sync; tidak perlu menjumlah Income lagi.
+        $totalSaldo = (float) Saldo::sum('amount');
         $totalPengeluaran = (float) Transaction::sum('amount');
         $sisaSaldo = $totalSaldo - $totalPengeluaran;
         $jumlahTransaksi = Transaction::count();
@@ -282,8 +288,7 @@ class DashboardController extends Controller
 
         $saldoPerKategori = [];
         foreach ($categories as $category) {
-            $totalSaldoCategory = (float) Saldo::where('category_id', $category->id)->sum('amount')
-                + ($hasIncomes ? (float) Income::where('category_id', $category->id)->sum('amount') : 0);
+            $totalSaldoCategory = (float) Saldo::where('category_id', $category->id)->sum('amount');
 
             if ($totalSaldoCategory > 0) {
                 $saldoPerKategori[] = ['name' => $category->name, 'y' => $totalSaldoCategory];
