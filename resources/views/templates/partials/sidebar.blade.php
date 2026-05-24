@@ -34,6 +34,12 @@
 				Financial planner</a>
 		</li>
 
+		<li class="{{ request()->is('insight*') ? 'active' : '' }}">
+			<a href="{{ route('insight.index') }}">
+				<em class="fa fa-lightbulb-o">&nbsp;</em>
+				Insight AI</a>
+		</li>
+
 		<li class="{{ request()->is('laba-rugi*') ? 'active' : '' }}">
 			<a href="{{ route('profit-loss.index') }}">
 				<em class="fa fa-bar-chart">&nbsp;</em>

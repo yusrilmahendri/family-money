@@ -5,7 +5,9 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DebtController;
 use App\Http\Controllers\FinancialPlannerController;
+use App\Http\Controllers\AiChatController;
 use App\Http\Controllers\IncomeController;
+use App\Http\Controllers\InsightController;
 use App\Http\Controllers\OperationalExpenseController;
 use App\Http\Controllers\ProfitLossController;
 use App\Http\Controllers\RecurringTransactionController;
@@ -75,3 +77,9 @@ Route::post('/recurring-transactions/{recurring}/post', [RecurringTransactionCon
 Route::resource('recurring-transactions', RecurringTransactionController::class)->parameters([
     'recurring-transactions' => 'recurring',
 ])->except(['show']);
+
+// AI: Chatbot & Insight
+Route::post('/api/v1/ai/chat', [AiChatController::class, 'ask'])->name('ai.chat');
+Route::get('/insight', [InsightController::class, 'index'])->name('insight.index');
+Route::post('/insight/summary', [InsightController::class, 'generateSummary'])->name('insight.summary');
+Route::post('/insight/explain-anomalies', [InsightController::class, 'explainAnomalies'])->name('insight.explain_anomalies');

@@ -43,5 +43,8 @@
      <!-- script js -->
      @include('templates.partials.scripts')
 
+     <!-- AI Asisten (floating chatbot) -->
+     @include('templates.partials.ai_chat')
+
 </body>
 </html>
