@@ -35,11 +35,57 @@ return [
         ],
     ],
 
-    'openai' => [
-        'key' => env('OPENAI_API_KEY'),
-        'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
-        'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
-        'timeout' => (int) env('OPENAI_TIMEOUT', 30),
+    'ai' => [
+        // Pilih provider: gemini | groq | openrouter | openai | ollama | custom
+        // gemini direkomendasikan: gratis 1500 req/hari, akurasi tinggi, Bahasa Indonesia bagus
+        'provider' => env('AI_PROVIDER', 'gemini'),
+        'timeout' => (int) env('AI_TIMEOUT', 45),
+
+        // ---- Google Gemini (gratis, paling direkomendasikan) ----
+        // Daftar: https://aistudio.google.com/apikey
+        'gemini' => [
+            'key' => env('GEMINI_API_KEY'),
+            'model' => env('GEMINI_MODEL', 'gemini-2.0-flash'),
+            'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
+        ],
+
+        // ---- Groq (gratis, sangat cepat, OpenAI-compatible) ----
+        // Daftar: https://console.groq.com/keys
+        'groq' => [
+            'key' => env('GROQ_API_KEY'),
+            'model' => env('GROQ_MODEL', 'llama-3.3-70b-versatile'),
+            'base_url' => env('GROQ_BASE_URL', 'https://api.groq.com/openai/v1'),
+        ],
+
+        // ---- OpenRouter (banyak model gratis: deepseek, llama, dll) ----
+        // Daftar: https://openrouter.ai/keys
+        'openrouter' => [
+            'key' => env('OPENROUTER_API_KEY'),
+            'model' => env('OPENROUTER_MODEL', 'deepseek/deepseek-chat-v3-0324:free'),
+            'base_url' => env('OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1'),
+        ],
+
+        // ---- OpenAI berbayar (atau provider OpenAI-compatible) ----
+        'openai' => [
+            'key' => env('OPENAI_API_KEY'),
+            'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+            'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
+        ],
+
+        // ---- Ollama lokal (offline, 100% gratis selamanya) ----
+        // jalankan: `ollama serve` lalu `ollama pull llama3.1`
+        'ollama' => [
+            'key' => env('OLLAMA_API_KEY', 'ollama'),
+            'model' => env('OLLAMA_MODEL', 'llama3.1'),
+            'base_url' => env('OLLAMA_BASE_URL', 'http://localhost:11434/v1'),
+        ],
+
+        // ---- Custom endpoint kompatibel OpenAI ----
+        'custom' => [
+            'key' => env('AI_CUSTOM_KEY'),
+            'model' => env('AI_CUSTOM_MODEL'),
+            'base_url' => env('AI_CUSTOM_BASE_URL'),
+        ],
     ],
 
 ];

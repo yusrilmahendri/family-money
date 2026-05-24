@@ -26,7 +26,11 @@ class AiChatController extends Controller
         if (!$this->ai->isConfigured()) {
             return response()->json([
                 'ok' => false,
-                'error' => 'Fitur AI belum aktif. Hubungi admin untuk mengatur OPENAI_API_KEY di file .env.',
+                'error' => sprintf(
+                    'Fitur AI belum aktif. Tambahkan %s di file .env (provider: %s).',
+                    $this->ai->envKeyName(),
+                    $this->ai->providerLabel()
+                ),
             ], 200);
         }
 

@@ -32,6 +32,8 @@ class InsightController extends Controller
             'anomali' => $anomaliData,
             'forecast' => $forecastData,
             'ai_ready' => $this->ai->isConfigured(),
+            'ai_provider_label' => $this->ai->providerLabel(),
+            'ai_env_key' => $this->ai->envKeyName(),
             'available_years' => $this->availableYears(),
         ]);
     }
@@ -47,7 +49,11 @@ class InsightController extends Controller
         if (!$this->ai->isConfigured()) {
             return response()->json([
                 'ok' => false,
-                'error' => 'OpenAI belum dikonfigurasi. Tambahkan OPENAI_API_KEY di .env.',
+                'error' => sprintf(
+                    'AI belum dikonfigurasi. Tambahkan %s di .env (provider: %s).',
+                    $this->ai->envKeyName(),
+                    $this->ai->providerLabel()
+                ),
             ], 200);
         }
 
@@ -120,7 +126,10 @@ USR;
         if (!$this->ai->isConfigured()) {
             return response()->json([
                 'ok' => false,
-                'error' => 'OpenAI belum dikonfigurasi.',
+                'error' => sprintf(
+                    'AI belum dikonfigurasi. Tambahkan %s di .env.',
+                    $this->ai->envKeyName()
+                ),
             ], 200);
         }
 

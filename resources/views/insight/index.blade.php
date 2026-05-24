@@ -14,7 +14,8 @@
     @unless($ai_ready)
         <div class="alert alert-warning">
             <strong>Fitur AI belum aktif.</strong>
-            Tambahkan <code>OPENAI_API_KEY=sk-...</code> di file <code>.env</code> lalu jalankan
+            Provider yang dipilih: <code>{{ $ai_provider_label ?? 'Gemini' }}</code>.
+            Tambahkan <code>{{ $ai_env_key ?? 'GEMINI_API_KEY' }}=...</code> di file <code>.env</code> lalu jalankan
             <code>php artisan config:clear</code>. Bagian Anomali &amp; Forecast tetap berjalan
             tanpa AI (pakai perhitungan statistik), tapi ringkasan naratif memerlukan AI.
         </div>
