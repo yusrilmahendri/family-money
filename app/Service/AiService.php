@@ -20,7 +20,10 @@ class AiService
 {
     public function provider(): string
     {
-        return strtolower((string) config('services.ai.provider', 'gemini'));
+        $fromConfig = config('services.ai.provider');
+        $fromEnv = env('AI_PROVIDER');
+
+        return strtolower((string) ($fromConfig ?: $fromEnv ?: 'gemini'));
     }
 
     public function isConfigured(): bool
@@ -274,7 +277,69 @@ class AiService
 
     private function cfg(): array
     {
-        return (array) config('services.ai.'.$this->provider(), []);
+        $provider = $this->provider();
+        $cfg = (array) config('services.ai.'.$provider, []);
+
+        // Fallback: baca langsung .env (penting di shared hosting setelah edit .env tanpa config:clear)
+        $envFallback = [
+            'gemini' => [
+                'key' => 'GEMINI_API_KEY',
+                'model' => 'GEMINI_MODEL',
+                'base_url' => 'GEMINI_BASE_URL',
+                'default_model' => 'gemini-2.0-flash-lite',
+                'default_base' => 'https://generativelanguage.googleapis.com/v1beta',
+            ],
+            'groq' => [
+                'key' => 'GROQ_API_KEY',
+                'model' => 'GROQ_MODEL',
+                'base_url' => 'GROQ_BASE_URL',
+                'default_model' => 'llama-3.3-70b-versatile',
+                'default_base' => 'https://api.groq.com/openai/v1',
+            ],
+            'openrouter' => [
+                'key' => 'OPENROUTER_API_KEY',
+                'model' => 'OPENROUTER_MODEL',
+                'base_url' => 'OPENROUTER_BASE_URL',
+                'default_model' => 'deepseek/deepseek-chat-v3-0324:free',
+                'default_base' => 'https://openrouter.ai/api/v1',
+            ],
+            'openai' => [
+                'key' => 'OPENAI_API_KEY',
+                'model' => 'OPENAI_MODEL',
+                'base_url' => 'OPENAI_BASE_URL',
+                'default_model' => 'gpt-4o-mini',
+                'default_base' => 'https://api.openai.com/v1',
+            ],
+            'ollama' => [
+                'key' => 'OLLAMA_API_KEY',
+                'model' => 'OLLAMA_MODEL',
+                'base_url' => 'OLLAMA_BASE_URL',
+                'default_model' => 'llama3.1',
+                'default_base' => 'http://localhost:11434/v1',
+            ],
+            'custom' => [
+                'key' => 'AI_CUSTOM_KEY',
+                'model' => 'AI_CUSTOM_MODEL',
+                'base_url' => 'AI_CUSTOM_BASE_URL',
+                'default_model' => null,
+                'default_base' => null,
+            ],
+        ];
+
+        if (isset($envFallback[$provider])) {
+            $fb = $envFallback[$provider];
+            if (empty($cfg['key'])) {
+                $cfg['key'] = trim((string) env($fb['key'], ''));
+            }
+            if (empty($cfg['model'])) {
+                $cfg['model'] = env($fb['model'], $fb['default_model']);
+            }
+            if (empty($cfg['base_url'])) {
+                $cfg['base_url'] = env($fb['base_url'], $fb['default_base']);
+            }
+        }
+
+        return $cfg;
     }
 
     private function timeout(): int

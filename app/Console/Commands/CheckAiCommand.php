@@ -13,15 +13,29 @@ class CheckAiCommand extends Command
     public function handle(AiService $ai): int
     {
         $provider = $ai->provider();
-        $key = (string) config('services.ai.'.$provider.'.key');
-        $model = (string) config('services.ai.'.$provider.'.model');
+        $keyConfig = trim((string) config('services.ai.'.$provider.'.key'));
+        $keyEnv = trim((string) match ($provider) {
+            'gemini' => env('GEMINI_API_KEY', ''),
+            'groq' => env('GROQ_API_KEY', ''),
+            'openrouter' => env('OPENROUTER_API_KEY', ''),
+            'openai' => env('OPENAI_API_KEY', ''),
+            default => '',
+        });
+        $model = (string) (config('services.ai.'.$provider.'.model') ?: env(strtoupper($provider).'_MODEL', ''));
 
         $this->info('=== Konfigurasi AI ===');
+        $this->line('Folder kerja : '.base_path());
         $this->line('Provider     : '.$provider.' ('.$ai->providerLabel().')');
         $this->line('Model        : '.($model ?: '(kosong)'));
-        $this->line('Key length   : '.strlen($key));
-        $this->line('Key preview  : '.($key === '' ? '(kosong)' : substr($key, 0, 8).'...'.substr($key, -4)));
-        $this->line('isConfigured : '.($ai->isConfigured() ? 'YA' : 'TIDAK'));
+        $this->line('Key (config) : '.($keyConfig === '' ? '(kosong)' : strlen($keyConfig).' karakter'));
+        $this->line('Key (.env)   : '.($keyEnv === '' ? '(kosong)' : strlen($keyEnv).' karakter'));
+        $this->line('Key dipakai  : '.($ai->isConfigured() ? 'YA' : 'TIDAK'));
+        if ($keyConfig === '' && $keyEnv !== '') {
+            $this->warn('-> Key ada di .env tapi config belum refresh. Jalankan: php artisan config:clear');
+        }
+        if ($keyConfig === '' && $keyEnv === '') {
+            $this->warn('-> Tambahkan '.$ai->envKeyName().'=... di file .env di folder ini: '.base_path());
+        }
 
         if (!$ai->isConfigured()) {
             $this->error('-> Key belum terbaca. Cek '.$ai->envKeyName().' di .env, lalu php artisan config:clear.');
