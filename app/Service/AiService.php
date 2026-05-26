@@ -91,15 +91,42 @@ class AiService
     private function chatGemini(array $messages, array $options): array
     {
         $cfg = $this->cfg();
-        $model = $options['model'] ?? ($cfg['model'] ?? 'gemini-2.0-flash');
+        $preferred = $options['model'] ?? ($cfg['model'] ?? 'gemini-2.0-flash-lite');
 
+        // Coba model utama dulu, lalu fallback jika kuota habis (429) atau model tidak ada (404)
+        $modelsToTry = array_values(array_unique(array_filter([
+            $preferred,
+            'gemini-2.0-flash-lite',
+            'gemini-2.0-flash-001',
+            'gemini-2.5-flash',
+            'gemini-flash-latest',
+        ])));
+
+        $lastError = 'Gemini tidak merespons.';
+        foreach ($modelsToTry as $model) {
+            $result = $this->chatGeminiOnce($cfg, $model, $messages, $options);
+            if ($result['ok']) {
+                return $result;
+            }
+            $lastError = $result['error'] ?? $lastError;
+            $retryable = in_array($result['status'] ?? 0, [429, 404, 503], true);
+            if (!$retryable) {
+                return $result;
+            }
+        }
+
+        return ['ok' => false, 'error' => $lastError];
+    }
+
+    private function chatGeminiOnce(array $cfg, string $model, array $messages, array $options): array
+    {
         [$systemText, $contents] = $this->messagesToGemini($messages);
 
         $payload = [
             'contents' => $contents,
             'generationConfig' => array_filter([
                 'temperature' => $options['temperature'] ?? 0.3,
-                'maxOutputTokens' => isset($options['max_tokens']) ? (int) $options['max_tokens'] : 1024,
+                'maxOutputTokens' => isset($options['max_tokens']) ? (int) $options['max_tokens'] : 2048,
             ]),
         ];
 
@@ -119,24 +146,42 @@ class AiService
                 ->post($url, $payload);
 
             if (!$resp->successful()) {
-                Log::warning('Gemini error', ['status' => $resp->status(), 'body' => $resp->body()]);
+                Log::warning('Gemini error', ['model' => $model, 'status' => $resp->status(), 'body' => $resp->body()]);
                 $msg = $resp->json('error.message') ?? $resp->body();
-                return ['ok' => false, 'error' => 'Gemini gagal ('.$resp->status().'): '.$this->shorten($msg)];
+                $status = $resp->status();
+                if ($status === 429) {
+                    return ['ok' => false, 'status' => 429, 'error' => 'Kuota habis untuk model '.$model.'. Mencoba model lain...'];
+                }
+                if ($status === 400 && str_contains(strtolower((string) $msg), 'api key')) {
+                    return ['ok' => false, 'status' => 400, 'error' => 'API key Gemini tidak valid. Salin ulang dari aistudio.google.com/apikey (tombol Copy key) ke GEMINI_API_KEY di .env.'];
+                }
+                if ($status === 404) {
+                    return ['ok' => false, 'status' => 404, 'error' => 'Model '.$model.' tidak tersedia.'];
+                }
+                if ($status === 503) {
+                    return ['ok' => false, 'status' => 503, 'error' => 'Model '.$model.' sibuk (503). Mencoba model lain...'];
+                }
+                return ['ok' => false, 'status' => $status, 'error' => 'Gemini gagal ('.$status.'): '.$this->shorten($msg)];
             }
 
             $text = '';
             $parts = $resp->json('candidates.0.content.parts') ?? [];
             foreach ($parts as $p) {
-                if (isset($p['text'])) $text .= $p['text'];
+                if (isset($p['text'])) {
+                    $text .= $p['text'];
+                }
             }
             if ($text === '') {
                 $finish = $resp->json('candidates.0.finishReason') ?? 'unknown';
+                if ($finish === 'MAX_TOKENS') {
+                    return ['ok' => false, 'status' => 429, 'error' => 'Model '.$model.' kehabisan token output.'];
+                }
                 return ['ok' => false, 'error' => 'Gemini tidak mengembalikan teks (finishReason: '.$finish.').'];
             }
 
             return ['ok' => true, 'text' => $text, 'raw' => $resp->json()];
         } catch (\Throwable $e) {
-            Log::warning('Gemini exception', ['msg' => $e->getMessage()]);
+            Log::warning('Gemini exception', ['model' => $model, 'msg' => $e->getMessage()]);
             return ['ok' => false, 'error' => 'Gangguan jaringan ke Gemini: '.$e->getMessage()];
         }
     }

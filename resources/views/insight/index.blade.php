@@ -14,10 +14,15 @@
     @unless($ai_ready)
         <div class="alert alert-warning">
             <strong>Fitur AI belum aktif.</strong>
-            Provider yang dipilih: <code>{{ $ai_provider_label ?? 'Gemini' }}</code>.
-            Tambahkan <code>{{ $ai_env_key ?? 'GEMINI_API_KEY' }}=...</code> di file <code>.env</code> lalu jalankan
-            <code>php artisan config:clear</code>. Bagian Anomali &amp; Forecast tetap berjalan
-            tanpa AI (pakai perhitungan statistik), tapi ringkasan naratif memerlukan AI.
+            Provider: <code>{{ $ai_provider_label ?? 'Gemini' }}</code>.
+            @if(($gemini_key_length ?? 0) > 0)
+                Key terdeteksi di .env ({{ $gemini_key_length }} karakter) tapi belum terbaca Laravel.
+                <strong>Restart server:</strong> hentikan <code>php artisan serve</code> (Ctrl+C), jalankan ulang, lalu <code>php artisan config:clear</code>.
+            @else
+                Klik <strong>Copy key</strong> di <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a>,
+                tempel ke <code>GEMINI_API_KEY=</code> di <code>.env</code> (tanpa spasi/tanda petik), lalu <code>php artisan config:clear</code> dan restart server.
+            @endif
+            <br><small>Di terminal proyek bisa cek: <code>php artisan ai:check</code></small>
         </div>
     @endunless
 

@@ -34,6 +34,7 @@ class InsightController extends Controller
             'ai_ready' => $this->ai->isConfigured(),
             'ai_provider_label' => $this->ai->providerLabel(),
             'ai_env_key' => $this->ai->envKeyName(),
+            'gemini_key_length' => strlen(trim((string) env('GEMINI_API_KEY', ''))),
             'available_years' => $this->availableYears(),
         ]);
     }

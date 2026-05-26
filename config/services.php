@@ -45,7 +45,7 @@ return [
         // Daftar: https://aistudio.google.com/apikey
         'gemini' => [
             'key' => env('GEMINI_API_KEY'),
-            'model' => env('GEMINI_MODEL', 'gemini-2.0-flash'),
+            'model' => env('GEMINI_MODEL', 'gemini-2.0-flash-lite'),
             'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
         ],
 
