@@ -15,11 +15,19 @@
                                     <form action="{{ route('transactions.store') }}" method="POST" enctype="multipart/form-data">
                                         @csrf
 
+                                        {{-- Konteks aktif otomatis dari session --}}
+                                        <input type="hidden" name="context" value="{{ $context ?? \App\Support\FinanceContext::currentOrDefault() }}">
+
+                                        <div class="alert alert-info" style="padding:8px 12px;">
+                                            <i class="fa fa-th-large"></i> Transaksi dicatat pada aplikasi:
+                                            <strong>{{ \App\Support\FinanceContext::label($context ?? null) }}</strong>
+                                        </div>
+
                                         <div class="form-group @error('category_id') has-error @enderror">
                                             <label>Kategori / Jenis Usaha <small class="text-muted">(opsional)</small></label>
                                             <select class="form-control" name="category_id" id="trx_category_id">
                                                 <option value="">— Tanpa kategori (saldo umum) —</option>
-                                                @foreach(\App\Models\Category::orderBy('name')->get() as $cat)
+                                                @foreach(($categories ?? collect()) as $cat)
                                                     <option value="{{ $cat->id }}" @selected(old('category_id') == $cat->id)>{{ $cat->name }}</option>
                                                 @endforeach
                                             </select>

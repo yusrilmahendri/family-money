@@ -1,14 +1,21 @@
 @extends('welcome')
 
 @section('content')
+@php
+    $isFarm = ($mode ?? 'personal') === 'farm';
+@endphp
 <div class="insight-page" style="padding: 15px;">
 
     <h3 style="margin-top: 5px; font-size: 20px; font-weight: 700;">
         <i class="fa fa-lightbulb-o text-warning"></i>
-        Insight AI
+        Insight AI —
+        <span class="label {{ $isFarm ? 'label-success' : 'label-primary' }}" style="font-size: 14px; vertical-align: middle;">
+            <i class="fa {{ $isFarm ? 'fa-leaf' : 'fa-user' }}"></i> {{ $context_label }}
+        </span>
     </h3>
     <p class="text-muted" style="margin: 0 0 15px; font-size: 13px;">
-        Ringkasan otomatis, deteksi anomali, dan proyeksi 3 bulan ke depan menggunakan AI.
+        Ringkasan otomatis, deteksi anomali, dan proyeksi 3 bulan ke depan.
+        <strong>Analisis hanya menggunakan data dari konteks aktif</strong> ({{ $context_label }}).
     </p>
 
     @unless($ai_ready)
@@ -19,10 +26,23 @@
                 Key terdeteksi di .env ({{ $gemini_key_length }} karakter) tapi belum terbaca Laravel.
                 <strong>Restart server:</strong> hentikan <code>php artisan serve</code> (Ctrl+C), jalankan ulang, lalu <code>php artisan config:clear</code>.
             @else
-                Klik <strong>Copy key</strong> di <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a>,
-                tempel ke <code>GEMINI_API_KEY=</code> di <code>.env</code> (tanpa spasi/tanda petik), lalu <code>php artisan config:clear</code> dan restart server.
+                Tempel key ke <code>{{ $ai_env_key ?? 'GEMINI_API_KEY' }}=</code> di <code>.env</code>, lalu <code>php artisan config:clear</code> dan restart server.
             @endif
-            <br><small>Di terminal proyek bisa cek: <code>php artisan ai:check</code></small>
+            <br><small>Cek: <code>php artisan ai:check</code></small>
+        </div>
+    @endunless
+
+    @unless($has_data)
+        <div class="alert alert-info">
+            <i class="fa fa-info-circle"></i>
+            <strong>Belum ada data untuk konteks ini ({{ $context_label }}).</strong>
+            Tambahkan data dulu
+            @if($isFarm)
+                (Pemasukan Usaha / Biaya Operasional)
+            @else
+                (Transaksi Pribadi)
+            @endif
+            agar AI bisa menganalisis.
         </div>
     @endunless
 
@@ -54,10 +74,10 @@
         <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
             <h5 style="font-weight: 700; margin: 0; font-size: 16px;">
                 <i class="fa fa-magic text-primary"></i>
-                Ringkasan Bulanan Otomatis
+                Ringkasan Bulanan Otomatis — {{ $context_label }}
             </h5>
             <div>
-                <button id="btn-gen-summary" class="btn btn-primary btn-sm" {{ $ai_ready ? '' : 'disabled' }}>
+                <button id="btn-gen-summary" class="btn btn-primary btn-sm" {{ ($ai_ready && $has_data) ? '' : 'disabled' }}>
                     <i class="fa fa-refresh"></i> <span class="lbl">Buat Ringkasan</span>
                 </button>
                 <button id="btn-share-summary" class="btn btn-default btn-sm" style="display:none;">
@@ -66,7 +86,7 @@
             </div>
         </div>
         <div id="summary-body" class="text-muted" style="min-height: 60px; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">
-            Klik <em>Buat Ringkasan</em> untuk meminta AI menulis rangkuman keuangan periode {{ $anomali['bulan'] }}.
+            Klik <em>Buat Ringkasan</em> untuk meminta AI menulis rangkuman {{ $context_label }} periode {{ $anomali['bulan'] }}.
         </div>
     </div>
 
@@ -80,18 +100,21 @@
         @if(empty($anomali['anomalies']))
             <div class="alert alert-success" style="margin: 0;">
                 <i class="fa fa-check-circle"></i>
-                Tidak ada anomali signifikan terdeteksi. Pola keuangan terlihat normal dibanding 6 bulan lalu.
+                Tidak ada anomali signifikan terdeteksi untuk {{ $context_label }}. Pola terlihat normal dibanding 6 bulan lalu.
             </div>
         @else
             @foreach($anomali['anomalies'] as $a)
                 @php
                     $level = $a['level'] ?? 'info';
-                    $alertClass = match($level) {
-                        'danger' => 'alert-danger',
-                        'warning' => 'alert-warning',
-                        'success' => 'alert-success',
-                        default => 'alert-info',
-                    };
+                    if ($level === 'danger') {
+                        $alertClass = 'alert-danger';
+                    } elseif ($level === 'warning') {
+                        $alertClass = 'alert-warning';
+                    } elseif ($level === 'success') {
+                        $alertClass = 'alert-success';
+                    } else {
+                        $alertClass = 'alert-info';
+                    }
                 @endphp
                 <div class="alert {{ $alertClass }}" style="margin-bottom: 8px;">
                     <strong>{{ $a['judul'] }}</strong><br>
@@ -108,8 +131,11 @@
         @endif
 
         <small class="text-muted" style="display:block; margin-top: 10px;">
-            Rata-rata pemasukan 6 bulan: <strong>Rp {{ number_format($anomali['pemasukan']['avg'], 0, ',', '.') }}</strong>
-            &middot; Rata-rata biaya 6 bulan: <strong>Rp {{ number_format($anomali['biaya']['avg'], 0, ',', '.') }}</strong>
+            @foreach(($anomali['metrics'] ?? []) as $metric)
+                Rata-rata {{ strtolower($metric['label']) }} 6 bulan:
+                <strong>Rp {{ number_format($metric['avg'], 0, ',', '.') }}</strong>
+                @if(!$loop->last) &middot; @endif
+            @endforeach
         </small>
     </div>
 
@@ -117,32 +143,40 @@
     <div class="summary-card" style="border: 2px solid #f0f0f0; box-shadow: 0px 2px 8px rgba(0,0,0,0.05); border-radius: 12px; padding: 18px; background: #fff; margin-bottom: 15px;">
         <h5 style="font-weight: 700; margin: 0 0 12px; font-size: 16px;">
             <i class="fa fa-line-chart text-success"></i>
-            Proyeksi 3 Bulan ke Depan
+            Proyeksi 3 Bulan ke Depan — {{ $context_label }}
         </h5>
         <p class="text-muted" style="margin-bottom: 10px; font-size: 12px;">
-            Berdasarkan tren linear dari 6 bulan terakhir. Hasil hanya estimasi — bukan jaminan.
+            Berdasarkan tren linear 6 bulan terakhir. Hasil hanya estimasi — bukan jaminan.
         </p>
         <div class="table-responsive" style="-webkit-overflow-scrolling: touch;">
-            <table class="table table-bordered" style="min-width: 500px; margin: 0;">
+            <table class="table table-bordered" style="min-width: 400px; margin: 0;">
                 <thead style="background: #f8f9fa;">
                     <tr>
                         <th>Periode</th>
-                        <th class="text-right">Proyeksi Pemasukan</th>
-                        <th class="text-right">Proyeksi Biaya</th>
-                        <th class="text-right">Proyeksi Laba</th>
+                        @if($isFarm)
+                            <th class="text-right">Proyeksi Pemasukan</th>
+                            <th class="text-right">Proyeksi Biaya</th>
+                            <th class="text-right">Proyeksi Laba</th>
+                        @else
+                            <th class="text-right">Proyeksi Pengeluaran</th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($forecast['forecast'] as $f)
                         <tr>
                             <td><strong>{{ $f['label'] }}</strong></td>
-                            <td class="text-right text-success">Rp {{ number_format($f['pemasukan'], 0, ',', '.') }}</td>
-                            <td class="text-right text-danger">Rp {{ number_format($f['biaya'], 0, ',', '.') }}</td>
-                            <td class="text-right">
-                                <strong class="{{ $f['laba'] < 0 ? 'text-danger' : 'text-primary' }}">
-                                    Rp {{ number_format($f['laba'], 0, ',', '.') }}
-                                </strong>
-                            </td>
+                            @if($isFarm)
+                                <td class="text-right text-success">Rp {{ number_format($f['pemasukan'], 0, ',', '.') }}</td>
+                                <td class="text-right text-danger">Rp {{ number_format($f['biaya'], 0, ',', '.') }}</td>
+                                <td class="text-right">
+                                    <strong class="{{ $f['laba'] < 0 ? 'text-danger' : 'text-primary' }}">
+                                        Rp {{ number_format($f['laba'], 0, ',', '.') }}
+                                    </strong>
+                                </td>
+                            @else
+                                <td class="text-right text-danger">Rp {{ number_format($f['pengeluaran'], 0, ',', '.') }}</td>
+                            @endif
                         </tr>
                     @endforeach
                 </tbody>
@@ -178,6 +212,7 @@
     var csrf = document.querySelector('#csrfHolder input[name=_token]').value;
     var year = {{ $year }};
     var month = {{ $month }};
+    var isFarm = {{ $isFarm ? 'true' : 'false' }};
 
     var btnGen = document.getElementById('btn-gen-summary');
     var btnShare = document.getElementById('btn-share-summary');
@@ -267,41 +302,37 @@
         });
     }
 
-    // Forecast chart
+    // Forecast chart (context-aware)
     var ctx = document.getElementById('forecastChart');
     if (ctx) {
         var history = @json($forecast['history']);
         var forecast = @json($forecast['forecast']);
         var labels = history.map(function (h) { return h.label; })
             .concat(forecast.map(function (f) { return f.label + ' *'; }));
-        var pem = history.map(function (h) { return h.pemasukan; })
-            .concat(forecast.map(function (f) { return f.pemasukan; }));
-        var bia = history.map(function (h) { return h.biaya; })
-            .concat(forecast.map(function (f) { return f.biaya; }));
+
+        var datasets = [];
+        if (isFarm) {
+            datasets.push({
+                label: 'Pemasukan',
+                data: history.map(function (h) { return h.pemasukan; }).concat(forecast.map(function (f) { return f.pemasukan; })),
+                borderColor: 'rgba(40,167,69,1)', backgroundColor: 'rgba(40,167,69,0.15)', tension: 0.3, fill: false
+            });
+            datasets.push({
+                label: 'Biaya',
+                data: history.map(function (h) { return h.biaya; }).concat(forecast.map(function (f) { return f.biaya; })),
+                borderColor: 'rgba(217,83,79,1)', backgroundColor: 'rgba(217,83,79,0.15)', tension: 0.3, fill: false
+            });
+        } else {
+            datasets.push({
+                label: 'Pengeluaran',
+                data: history.map(function (h) { return h.pengeluaran; }).concat(forecast.map(function (f) { return f.pengeluaran; })),
+                borderColor: 'rgba(111,66,193,1)', backgroundColor: 'rgba(111,66,193,0.15)', tension: 0.3, fill: false
+            });
+        }
 
         new Chart(ctx.getContext('2d'), {
             type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Pemasukan',
-                        data: pem,
-                        borderColor: 'rgba(40,167,69,1)',
-                        backgroundColor: 'rgba(40,167,69,0.15)',
-                        tension: 0.3,
-                        fill: false,
-                    },
-                    {
-                        label: 'Biaya',
-                        data: bia,
-                        borderColor: 'rgba(217,83,79,1)',
-                        backgroundColor: 'rgba(217,83,79,0.15)',
-                        tension: 0.3,
-                        fill: false,
-                    }
-                ]
-            },
+            data: { labels: labels, datasets: datasets },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -309,9 +340,9 @@
                 plugins: {
                     tooltip: {
                         callbacks: {
-                            label: function (ctx) {
-                                var v = ctx.parsed.y || 0;
-                                return ctx.dataset.label + ': Rp ' + v.toLocaleString('id-ID');
+                            label: function (c) {
+                                var v = c.parsed.y || 0;
+                                return c.dataset.label + ': Rp ' + v.toLocaleString('id-ID');
                             }
                         }
                     },

@@ -13,6 +13,7 @@ class Income extends Model
 
     protected $fillable = [
         'category_id',
+        'context',
         'source',
         'amount',
         'income_date',
@@ -35,5 +36,13 @@ class Income extends Model
     public function saldo(): HasOne
     {
         return $this->hasOne(Saldo::class);
+    }
+
+    /**
+     * Filter berdasarkan konteks aktif (PRIBADI / USAHA_KEBUN).
+     */
+    public function scopeForContext($query, ?string $context)
+    {
+        return $query->where('context', $context);
     }
 }

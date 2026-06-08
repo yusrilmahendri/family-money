@@ -4,12 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\GoalContribution;
 use App\Models\SavingsGoal;
+use App\Services\FinanceContextService;
 use Illuminate\Http\Request;
 
 class SavingsGoalController extends Controller
 {
     public function index()
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         $goals = SavingsGoal::query()->orderBy('title')->get();
 
         return view('savings_goals.index', [
@@ -20,6 +24,9 @@ class SavingsGoalController extends Controller
 
     public function create()
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         return view('savings_goals.create', [
             'title' => 'Goal tabungan baru',
         ]);
@@ -27,6 +34,9 @@ class SavingsGoalController extends Controller
 
     public function store(Request $request)
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'target_amount' => ['required', 'string'],
@@ -46,6 +56,9 @@ class SavingsGoalController extends Controller
 
     public function show(SavingsGoal $savings_goal)
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         $savings_goal->load(['contributions' => fn ($q) => $q->orderBy('contributed_on', 'desc')]);
         $saved = $savings_goal->savedTotal();
         $target = (float) $savings_goal->target_amount;
@@ -61,6 +74,9 @@ class SavingsGoalController extends Controller
 
     public function edit(SavingsGoal $savings_goal)
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         return view('savings_goals.edit', [
             'title' => 'Ubah goal',
             'goal' => $savings_goal,
@@ -69,6 +85,9 @@ class SavingsGoalController extends Controller
 
     public function update(Request $request, SavingsGoal $savings_goal)
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'target_amount' => ['required', 'string'],
@@ -88,6 +107,9 @@ class SavingsGoalController extends Controller
 
     public function destroy(SavingsGoal $savings_goal)
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         $savings_goal->delete();
 
         return redirect()->route('savings-goals.index')->with('success', 'Goal dihapus.');
@@ -95,6 +117,9 @@ class SavingsGoalController extends Controller
 
     public function storeContribution(Request $request, SavingsGoal $savings_goal)
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         $validated = $request->validate([
             'amount' => ['required', 'string'],
             'contributed_on' => ['required', 'date'],

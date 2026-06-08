@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AppPortalController;
 use App\Http\Controllers\BudgetController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
@@ -15,6 +16,10 @@ use App\Http\Controllers\SaldoController;
 use App\Http\Controllers\SavingsGoalController;
 use App\Http\Controllers\TransactionsController;
 use Illuminate\Support\Facades\Route;
+
+// Portal pilih "aplikasi" (konteks keuangan) — tanpa login/middleware
+Route::get('/apps', [AppPortalController::class, 'index'])->name('apps.index');
+Route::post('/apps/select', [AppPortalController::class, 'select'])->name('apps.select');
 
 Route::get('/', [DashboardController::class, 'index']);
 

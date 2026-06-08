@@ -3,6 +3,40 @@
 @section('content')
 <div class="container mt-4" style="margin-top: 25px;">
 
+    {{-- Banner Konteks Aktif + Saldo Global --}}
+    <div class="row" style="margin-top: 10px;">
+        <div class="col-xs-12">
+            <div class="panel" style="border-left: 5px solid #30a5ff; background:#f7fbff;">
+                <div class="panel-body" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px;">
+                    <div>
+                        <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:.5px;">
+                            <i class="fa fa-th-large"></i> Aplikasi Aktif
+                        </span>
+                        <div style="font-size:20px; font-weight:700; color:#1f7fd1;">
+                            {{ $financeContextLabel ?? 'Keuangan' }}
+                        </div>
+                        <small class="text-muted">
+                            {{ number_format($ctxTransaksiCount ?? 0, 0, ',', '.') }} transaksi •
+                            Total Rp {{ number_format($ctxTransaksiTotal ?? 0, 0, ',', '.') }} •
+                            Bulan ini Rp {{ number_format($ctxTransaksiBulanIni ?? 0, 0, ',', '.') }}
+                        </small>
+                    </div>
+                    <div style="text-align:right;">
+                        <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:.5px;">
+                            <i class="fa fa-globe"></i> Saldo Global (Shared)
+                        </span>
+                        <div style="font-size:24px; font-weight:800; color:#28a745; word-break:break-all;">
+                            Rp {{ number_format($totalSaldo, 0, ',', '.') }}
+                        </div>
+                        <a href="{{ route('apps.index') }}" class="btn btn-default btn-xs">
+                            <i class="fa fa-exchange"></i> Ganti aplikasi
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- Card Summary --}}
     <div class="row g-3" style="margin-top: 10px;">
         <div class="col-xs-12 col-sm-6 col-md-3">

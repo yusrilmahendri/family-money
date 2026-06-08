@@ -6,6 +6,7 @@ use App\Models\Budget;
 use App\Models\BudgetActivity;
 use App\Models\Category;
 use App\Models\Income;
+use App\Services\FinanceContextService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -13,6 +14,9 @@ class ProfitLossController extends Controller
 {
     public function index(Request $request)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $year = (int) ($request->get('year') ?: now()->year);
         $month = $request->get('month'); // null = sepanjang tahun
         $categoryId = $request->get('category_id'); // null = semua

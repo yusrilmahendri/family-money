@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Income;
 use App\Models\Saldo;
+use App\Support\FinanceContext;
+use App\Services\FinanceContextService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -14,7 +16,12 @@ class IncomeController extends Controller
 {
     public function data()
     {
-        $q = Income::query()->with('category')->orderBy('income_date', 'desc');
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
+        $q = Income::query()->with('category')
+            ->forContext(FinanceContext::USAHA_KEBUN)
+            ->orderBy('income_date', 'desc');
 
         return DataTables::of($q)
             ->addColumn('category', fn (Income $i) => $i->category?->name ?? '—')
@@ -29,13 +36,19 @@ class IncomeController extends Controller
 
     public function index()
     {
-        $totalIncome = (float) Income::sum('amount');
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
+
+        $totalIncome = (float) Income::forContext(FinanceContext::USAHA_KEBUN)->sum('amount');
         $thisMonth = (float) Income::query()
+            ->forContext(FinanceContext::USAHA_KEBUN)
             ->whereYear('income_date', now()->year)
             ->whereMonth('income_date', now()->month)
             ->sum('amount');
 
-        $perKategori = Category::orderBy('name')
+        $perKategori = Category::forContext(FinanceContext::USAHA_KEBUN)
+            ->orderBy('name')
             ->get()
             ->map(function (Category $cat) {
                 return [
@@ -60,14 +73,21 @@ class IncomeController extends Controller
 
     public function create()
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
+
         return view('incomes.create', [
             'title' => 'Tambah Pemasukan',
-            'categories' => Category::orderBy('name')->get(),
+            'categories' => Category::forContext(FinanceContext::USAHA_KEBUN)->orderBy('name')->get(),
         ]);
     }
 
     public function store(Request $request)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $validated = $request->validate([
             'source' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'string'],
@@ -86,6 +106,7 @@ class IncomeController extends Controller
         DB::transaction(function () use ($validated, $amount) {
             $income = Income::create([
                 'category_id' => $validated['category_id'],
+                'context' => FinanceContext::USAHA_KEBUN,
                 'source' => $validated['source'],
                 'amount' => $amount,
                 'income_date' => $validated['income_date'],
@@ -100,15 +121,22 @@ class IncomeController extends Controller
 
     public function edit(Income $income)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
+
         return view('incomes.edit', [
             'title' => 'Ubah Pemasukan',
             'income' => $income,
-            'categories' => Category::orderBy('name')->get(),
+            'categories' => Category::forContext(FinanceContext::USAHA_KEBUN)->orderBy('name')->get(),
         ]);
     }
 
     public function update(Request $request, Income $income)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $validated = $request->validate([
             'source' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'string'],
@@ -138,6 +166,9 @@ class IncomeController extends Controller
 
     public function destroy(Income $income)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         DB::transaction(function () use ($income) {
             if (Schema::hasColumn('saldos', 'income_id')) {
                 Saldo::where('income_id', $income->id)->delete();

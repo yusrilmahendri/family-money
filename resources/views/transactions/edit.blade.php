@@ -19,11 +19,16 @@
                                         @csrf
                                         @method('PUT')
 
+                                        <div class="alert alert-info" style="padding:8px 12px;">
+                                            <i class="fa fa-th-large"></i> Aplikasi:
+                                            <strong>{{ \App\Support\FinanceContext::label($transaction->context ?? null) }}</strong>
+                                        </div>
+
                                         <div class="form-group @error('category_id') has-error @enderror">
                                             <label>Kategori / Jenis Usaha <small class="text-muted">(opsional)</small></label>
                                             <select class="form-control" name="category_id">
                                                 <option value="">— Tanpa kategori (saldo umum) —</option>
-                                                @foreach(\App\Models\Category::orderBy('name')->get() as $cat)
+                                                @foreach(($categories ?? collect()) as $cat)
                                                     <option value="{{ $cat->id }}" @selected(old('category_id', $transaction->category_id) == $cat->id)>{{ $cat->name }}</option>
                                                 @endforeach
                                             </select>

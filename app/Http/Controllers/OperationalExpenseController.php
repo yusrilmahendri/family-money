@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Budget;
 use App\Models\BudgetActivity;
 use App\Models\Category;
+use App\Services\FinanceContextService;
+use App\Support\FinanceContext;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Yajra\DataTables\Facades\DataTables;
@@ -16,6 +18,9 @@ class OperationalExpenseController extends Controller
      */
     public function data()
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $q = BudgetActivity::query()
             ->with(['budget.category'])
             ->orderBy('activity_date', 'desc');
@@ -40,6 +45,9 @@ class OperationalExpenseController extends Controller
 
     public function index()
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $now = now();
 
         $totalBiayaBulanIni = (float) BudgetActivity::query()
@@ -55,7 +63,7 @@ class OperationalExpenseController extends Controller
 
         return view('operational.index', [
             'title' => 'Biaya Operasional',
-            'categories' => Category::orderBy('name')->get(),
+            'categories' => Category::forContext(FinanceContext::USAHA_KEBUN)->orderBy('name')->get(),
             'budgets' => Budget::with('category')->orderBy('periode', 'desc')->get(),
             'total_bulan_ini' => $totalBiayaBulanIni,
             'total_tahun_ini' => $totalBiayaTahunIni,
@@ -65,15 +73,21 @@ class OperationalExpenseController extends Controller
 
     public function create()
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         return view('operational.create', [
             'title' => 'Tambah Biaya Operasional',
-            'categories' => Category::orderBy('name')->get(),
+            'categories' => Category::forContext(FinanceContext::USAHA_KEBUN)->orderBy('name')->get(),
             'budgets' => Budget::with('category')->orderBy('periode', 'desc')->get(),
         ]);
     }
 
     public function store(Request $request)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $validated = $request->validate([
             'budget_id' => ['required', 'exists:budgets,id'],
             'name' => ['required', 'string', 'max:255'],
@@ -118,6 +132,9 @@ class OperationalExpenseController extends Controller
 
     public function edit(BudgetActivity $operational)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         return view('operational.edit', [
             'title' => 'Ubah Biaya Operasional',
             'activity' => $operational,
@@ -127,6 +144,9 @@ class OperationalExpenseController extends Controller
 
     public function update(Request $request, BudgetActivity $operational)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $validated = $request->validate([
             'budget_id' => ['required', 'exists:budgets,id'],
             'name' => ['required', 'string', 'max:255'],
@@ -165,6 +185,9 @@ class OperationalExpenseController extends Controller
 
     public function destroy(BudgetActivity $operational)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $operational->delete();
 
         return redirect()->route('operational.index')
@@ -176,6 +199,9 @@ class OperationalExpenseController extends Controller
      */
     public function budgetInfo(Budget $budget)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $budget->load('category');
         $terpakai = (float) BudgetActivity::where('budget_id', $budget->id)->sum('amount');
         $sisa = (float) $budget->amount - $terpakai;

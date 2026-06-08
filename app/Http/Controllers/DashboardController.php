@@ -6,13 +6,16 @@ use App\Exports\DashboardExport;
 use App\Models\Budget;
 use App\Models\BudgetActivity;
 use App\Models\Category;
+use App\Models\Debt;
 use App\Models\Income;
 use App\Models\RecurringTransaction;
 use App\Models\Saldo;
+use App\Models\SavingsGoal;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Service\RecurringTransactionRunner;
 use App\Service\SaldoService;
+use App\Support\FinanceContext;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -30,84 +33,118 @@ class DashboardController extends Controller
 
     public function index(RecurringTransactionRunner $runner)
     {
-        $hasIncomes = Schema::hasTable('incomes');
-        $hasRecurring = Schema::hasTable('recurring_transactions');
+        // Guard ringan: wajib pilih konteks dulu (tanpa middleware)
+        if (! FinanceContext::isSelected()) {
+            return redirect()->route('apps.index');
+        }
 
-        if ($hasRecurring) {
+        if (Schema::hasTable('recurring_transactions')) {
             $runner->runDue();
         }
 
+        // Dashboard dipisah per konteks (feature set berbeda)
+        return FinanceContext::current() === FinanceContext::USAHA_KEBUN
+            ? $this->farmDashboard()
+            : $this->personalDashboard();
+    }
+
+    /**
+     * Dashboard Keuangan PRIBADI.
+     * Widget: pengeluaran pribadi bulan ini, total cicilan, goals tabungan.
+     */
+    protected function personalDashboard()
+    {
         $now = Carbon::now();
         $year = $now->year;
         $month = $now->month;
 
-        // Pemasukan sudah auto-sync ke tabel saldos lewat IncomeController.
-        $hasIncomeIdColumn = Schema::hasColumn('saldos', 'income_id');
-        $totalSaldoMasuk   = $hasIncomeIdColumn
-            ? (float) Saldo::whereNull('income_id')->sum('amount')
-            : (float) Saldo::sum('amount');
-        $totalPemasukan    = $hasIncomeIdColumn
-            ? (float) Saldo::whereNotNull('income_id')->sum('amount')
-            : ($hasIncomes ? (float) Income::sum('amount') : 0);
+        // Saldo tetap GLOBAL/shared
         $totalSaldo = (float) Saldo::sum('amount');
-        $totalPengeluaran = (float) Transaction::sum('amount');
-        $totalAnggaran = (float) Budget::sum('amount');
-        $sisaSaldo = $totalSaldo - $totalAnggaran - $totalPengeluaran;
 
-        // Bulan ini
-        $pemasukanBulanIni = $hasIncomes
-            ? (float) Income::whereYear('income_date', $year)->whereMonth('income_date', $month)->sum('amount')
-            : 0;
-        $pengeluaranBulanIni = (float) Transaction::whereYear('transaction_date', $year)->whereMonth('transaction_date', $month)->sum('amount');
-        $biayaUsahaBulanIni = (float) BudgetActivity::whereYear('activity_date', $year)->whereMonth('activity_date', $month)->sum('amount');
-        $labaBulanIni = $pemasukanBulanIni - $biayaUsahaBulanIni;
+        // Transaksi pribadi
+        $trxContext = FinanceContext::PRIBADI;
+        $pengeluaranBulanIni = (float) Transaction::forContext($trxContext)
+            ->whereYear('transaction_date', $year)->whereMonth('transaction_date', $month)->sum('amount');
+        $totalPengeluaran = (float) Transaction::forContext($trxContext)->sum('amount');
+        $jumlahTransaksiBulanIni = (int) Transaction::forContext($trxContext)
+            ->whereYear('transaction_date', $year)->whereMonth('transaction_date', $month)->count();
+        $lastTrans = Transaction::forContext($trxContext)->latest('transaction_date')->first();
 
-        $lastTrans = Transaction::latest('transaction_date')->first();
-        $jumlahTransaksi = Transaction::count();
-        $categories = Category::all();
+        // Utang & cicilan
+        $totalCicilan = Schema::hasTable('debts') ? (float) Debt::sum('monthly_installment') : 0;
+        $totalSisaUtang = Schema::hasTable('debts') ? (float) Debt::sum('remaining_balance') : 0;
+        $jumlahUtang = Schema::hasTable('debts') ? (int) Debt::count() : 0;
 
-        // Cashflow 12 bulan: pemasukan vs pengeluaran
-        $cashflowBulanan = [];
+        // Goals tabungan
+        $goals = Schema::hasTable('savings_goals')
+            ? SavingsGoal::orderBy('title')->get()->map(function (SavingsGoal $g) {
+                $saved = (float) $g->savedTotal();
+                $target = (float) $g->target_amount;
+                return [
+                    'title' => $g->title,
+                    'target' => $target,
+                    'saved' => $saved,
+                    'pct' => $target > 0 ? min(100, round($saved / $target * 100, 1)) : 0,
+                ];
+            })
+            : collect();
+
+        // Pengeluaran pribadi 12 bulan (chart)
+        $pengeluaranBulanan = [];
         for ($i = 1; $i <= 12; $i++) {
-            $bulanNama = Carbon::create()->month($i)->translatedFormat('M');
-            $income = $hasIncomes
-                ? (float) Income::whereYear('income_date', $year)->whereMonth('income_date', $i)->sum('amount')
-                : 0;
-            $expense = (float) Transaction::whereYear('transaction_date', $year)->whereMonth('transaction_date', $i)->sum('amount');
-            $biaya = (float) BudgetActivity::whereYear('activity_date', $year)->whereMonth('activity_date', $i)->sum('amount');
-
-            $cashflowBulanan[] = [
-                'bulan' => $bulanNama,
-                'pemasukan' => $income,
-                'pengeluaran' => $expense,
-                'biaya_usaha' => $biaya,
-                'laba' => $income - $biaya,
+            $pengeluaranBulanan[] = [
+                'bulan' => Carbon::create()->month($i)->translatedFormat('M'),
+                'total' => (float) Transaction::forContext($trxContext)
+                    ->whereYear('transaction_date', $year)->whereMonth('transaction_date', $i)->sum('amount'),
             ];
         }
 
-        // Legacy chart data (pengeluaran bulanan)
-        $pengeluaranBulanan = array_map(fn ($c) => [
-            'bulan' => $c['bulan'],
-            'total' => $c['pengeluaran'],
-        ], $cashflowBulanan);
+        return view('dashboard.personal', [
+            'financeContextLabel' => FinanceContext::label($trxContext),
+            'totalSaldo' => $totalSaldo,
+            'pengeluaranBulanIni' => $pengeluaranBulanIni,
+            'totalPengeluaran' => $totalPengeluaran,
+            'jumlahTransaksiBulanIni' => $jumlahTransaksiBulanIni,
+            'lastTrans' => $lastTrans,
+            'totalCicilan' => $totalCicilan,
+            'totalSisaUtang' => $totalSisaUtang,
+            'jumlahUtang' => $jumlahUtang,
+            'goals' => $goals,
+            'pengeluaranBulanan' => $pengeluaranBulanan,
+        ]);
+    }
 
-        // Saldo per kategori (Saldo sudah termasuk pemasukan auto-sync)
-        $saldoPerKategori = [];
-        foreach ($categories as $category) {
-            $total = (float) Saldo::where('category_id', $category->id)->sum('amount');
+    /**
+     * Dashboard Keuangan USAHA KEBUN.
+     * Widget: pemasukan usaha bulan ini, biaya operasional, laba/rugi, top biaya.
+     */
+    protected function farmDashboard()
+    {
+        $now = Carbon::now();
+        $year = $now->year;
+        $month = $now->month;
 
-            if ($total > 0) {
-                $saldoPerKategori[] = ['name' => $category->name, 'y' => $total];
-            }
-        }
+        $hasIncomes = Schema::hasTable('incomes');
 
-        $comparison = [
-            ['name' => 'Pemasukan', 'y' => $totalSaldo],
-            ['name' => 'Pengeluaran', 'y' => $totalPengeluaran],
-        ];
+        // Saldo tetap GLOBAL/shared
+        $totalSaldo = (float) Saldo::sum('amount');
 
-        // Top 5 aktivitas anggaran bulan ini
-        $topAktivitas = BudgetActivity::with('budget.category')
+        // Pemasukan usaha
+        $pemasukanBulanIni = $hasIncomes
+            ? (float) Income::forContext(FinanceContext::USAHA_KEBUN)
+                ->whereYear('income_date', $year)->whereMonth('income_date', $month)->sum('amount')
+            : 0;
+        $totalPemasukan = $hasIncomes ? (float) Income::forContext(FinanceContext::USAHA_KEBUN)->sum('amount') : 0;
+
+        // Biaya operasional (BudgetActivity)
+        $biayaBulanIni = (float) BudgetActivity::whereYear('activity_date', $year)
+            ->whereMonth('activity_date', $month)->sum('amount');
+        $totalBiaya = (float) BudgetActivity::sum('amount');
+
+        $labaBulanIni = $pemasukanBulanIni - $biayaBulanIni;
+
+        // Top 5 biaya operasional bulan ini
+        $topBiaya = BudgetActivity::with('budget.category')
             ->whereYear('activity_date', $year)
             ->whereMonth('activity_date', $month)
             ->orderByDesc('amount')
@@ -119,55 +156,52 @@ class DashboardController extends Controller
                 'amount' => (float) $a->amount,
             ]);
 
-        // Laba/rugi per jenis usaha bulan ini
-        $labaPerUsaha = $categories->map(function (Category $cat) use ($year, $month, $hasIncomes) {
-            $pendapatan = $hasIncomes
-                ? (float) Income::where('category_id', $cat->id)
-                    ->whereYear('income_date', $year)->whereMonth('income_date', $month)->sum('amount')
+        // Cashflow usaha 12 bulan (pemasukan vs biaya)
+        $cashflowBulanan = [];
+        for ($i = 1; $i <= 12; $i++) {
+            $income = $hasIncomes
+                ? (float) Income::whereYear('income_date', $year)->whereMonth('income_date', $i)->sum('amount')
                 : 0;
-            $biaya = (float) BudgetActivity::whereIn(
-                'budget_id',
-                Budget::where('category_id', $cat->id)->pluck('id')
-            )->whereYear('activity_date', $year)->whereMonth('activity_date', $month)->sum('amount');
-
-            return [
-                'name' => $cat->name,
-                'pendapatan' => $pendapatan,
+            $biaya = (float) BudgetActivity::whereYear('activity_date', $year)->whereMonth('activity_date', $i)->sum('amount');
+            $cashflowBulanan[] = [
+                'bulan' => Carbon::create()->month($i)->translatedFormat('M'),
+                'pemasukan' => $income,
                 'biaya' => $biaya,
-                'laba' => $pendapatan - $biaya,
+                'laba' => $income - $biaya,
             ];
-        })->filter(fn ($r) => $r['pendapatan'] > 0 || $r['biaya'] > 0)->values();
+        }
 
-        // Recurring yang akan jatuh tempo
-        $recurringDue = $hasRecurring
-            ? RecurringTransaction::where('active', true)
-                ->whereDate('next_due', '<=', $now->copy()->addDays(7))
-                ->orderBy('next_due')
-                ->limit(5)
-                ->get()
-            : collect();
+        // Laba/rugi per jenis usaha bulan ini
+        $labaPerUsaha = Category::forContext(FinanceContext::USAHA_KEBUN)->get()
+            ->map(function (Category $cat) use ($year, $month, $hasIncomes) {
+                $pendapatan = $hasIncomes
+                    ? (float) Income::where('category_id', $cat->id)
+                        ->whereYear('income_date', $year)->whereMonth('income_date', $month)->sum('amount')
+                    : 0;
+                $biaya = (float) BudgetActivity::whereIn(
+                    'budget_id',
+                    Budget::where('category_id', $cat->id)->pluck('id')
+                )->whereYear('activity_date', $year)->whereMonth('activity_date', $month)->sum('amount');
 
-        return view('dashboard', [
+                return [
+                    'name' => $cat->name,
+                    'pendapatan' => $pendapatan,
+                    'biaya' => $biaya,
+                    'laba' => $pendapatan - $biaya,
+                ];
+            })->filter(fn ($r) => $r['pendapatan'] > 0 || $r['biaya'] > 0)->values();
+
+        return view('dashboard.farm', [
+            'financeContextLabel' => FinanceContext::label(FinanceContext::USAHA_KEBUN),
             'totalSaldo' => $totalSaldo,
-            'totalSaldoMasuk' => $totalSaldoMasuk,
-            'totalPemasukan' => $totalPemasukan,
-            'totalPengeluaran' => $totalPengeluaran,
-            'totalAnggaran' => $totalAnggaran,
-            'sisaSaldo' => $sisaSaldo,
             'pemasukanBulanIni' => $pemasukanBulanIni,
-            'pengeluaranBulanIni' => $pengeluaranBulanIni,
-            'biayaUsahaBulanIni' => $biayaUsahaBulanIni,
+            'totalPemasukan' => $totalPemasukan,
+            'biayaBulanIni' => $biayaBulanIni,
+            'totalBiaya' => $totalBiaya,
             'labaBulanIni' => $labaBulanIni,
-            'lastTrans' => $lastTrans,
-            'jumlahTransaksi' => $jumlahTransaksi,
-            'pengeluaranBulanan' => $pengeluaranBulanan,
+            'topBiaya' => $topBiaya,
             'cashflowBulanan' => $cashflowBulanan,
-            'categories' => $categories,
-            'saldoPerKategori' => $saldoPerKategori,
-            'comparison' => $comparison,
-            'topAktivitas' => $topAktivitas,
             'labaPerUsaha' => $labaPerUsaha,
-            'recurringDue' => $recurringDue,
         ]);
     }
 

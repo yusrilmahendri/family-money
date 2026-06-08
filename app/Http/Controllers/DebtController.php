@@ -4,12 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\Debt;
 use App\Models\DebtPayment;
+use App\Services\FinanceContextService;
 use Illuminate\Http\Request;
 
 class DebtController extends Controller
 {
     public function index()
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         $debts = Debt::query()->orderBy('title')->get();
 
         return view('debts.index', [
@@ -20,6 +24,9 @@ class DebtController extends Controller
 
     public function create()
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         return view('debts.create', [
             'title' => 'Catat utang / cicilan',
         ]);
@@ -27,6 +34,9 @@ class DebtController extends Controller
 
     public function store(Request $request)
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'principal_total' => ['required', 'string'],
@@ -60,6 +70,9 @@ class DebtController extends Controller
 
     public function show(Debt $debt)
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         $debt->load(['payments' => fn ($q) => $q->orderBy('paid_on', 'desc')]);
 
         return view('debts.show', [
@@ -70,6 +83,9 @@ class DebtController extends Controller
 
     public function edit(Debt $debt)
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         return view('debts.edit', [
             'title' => 'Ubah utang',
             'debt' => $debt,
@@ -78,6 +94,9 @@ class DebtController extends Controller
 
     public function update(Request $request, Debt $debt)
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'principal_total' => ['required', 'string'],
@@ -105,6 +124,9 @@ class DebtController extends Controller
 
     public function destroy(Debt $debt)
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         $debt->delete();
 
         return redirect()->route('debts.index')->with('success', 'Utang dihapus.');
@@ -112,6 +134,9 @@ class DebtController extends Controller
 
     public function storePayment(Request $request, Debt $debt)
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         $validated = $request->validate([
             'amount' => ['required', 'string'],
             'paid_on' => ['required', 'date'],

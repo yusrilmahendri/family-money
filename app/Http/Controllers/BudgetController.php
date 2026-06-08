@@ -7,6 +7,8 @@ use App\Models\BudgetActivity;
 use App\Models\Category;
 use App\Models\Saldo;
 use App\Models\Transaction;
+use App\Services\FinanceContextService;
+use App\Support\FinanceContext;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -16,6 +18,9 @@ class BudgetController extends Controller
 {
     public function data()
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $q = Budget::query()
             ->with('category')
             ->withSum('activities as activities_total', 'amount')
@@ -46,6 +51,9 @@ class BudgetController extends Controller
 
     public function index()
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $now = Carbon::now();
 
         // Ringkasan global
@@ -116,14 +124,20 @@ class BudgetController extends Controller
 
     public function create()
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         return view('budgets.create', [
             'title' => 'Tambah Anggaran',
-            'categories' => Category::orderBy('name')->get(),
+            'categories' => Category::forContext(FinanceContext::USAHA_KEBUN)->orderBy('name')->get(),
         ]);
     }
 
     public function store(Request $request)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $validated = $request->validate([
             'amount' => ['required', 'string'],
             'description' => ['nullable', 'string', 'max:255'],
@@ -151,6 +165,9 @@ class BudgetController extends Controller
 
     public function show(Budget $budget)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $budget->load(['category', 'activities']);
 
         $aktivitasTotal = (float) $budget->activities->sum('amount');
@@ -179,15 +196,21 @@ class BudgetController extends Controller
 
     public function edit(Budget $budget)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         return view('budgets.edit', [
             'title' => 'Ubah Anggaran',
             'budget' => $budget,
-            'categories' => Category::orderBy('name')->get(),
+            'categories' => Category::forContext(FinanceContext::USAHA_KEBUN)->orderBy('name')->get(),
         ]);
     }
 
     public function update(Request $request, Budget $budget)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $validated = $request->validate([
             'amount' => ['required', 'string'],
             'description' => ['nullable', 'string', 'max:255'],
@@ -214,6 +237,9 @@ class BudgetController extends Controller
 
     public function destroy(Budget $budget)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $budget->delete();
 
         return redirect()->route('budgets.index')->with('success', 'Anggaran dihapus. Saldo dikembalikan ke saldo bebas.');
@@ -225,6 +251,9 @@ class BudgetController extends Controller
      */
     public function storeActivity(Request $request, Budget $budget)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'string'],
@@ -264,6 +293,9 @@ class BudgetController extends Controller
 
     public function updateActivity(Request $request, Budget $budget, BudgetActivity $activity)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         if ($activity->budget_id !== $budget->id) {
             abort(404);
         }
@@ -303,6 +335,9 @@ class BudgetController extends Controller
 
     public function destroyActivity(Budget $budget, BudgetActivity $activity)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         if ($activity->budget_id !== $budget->id) {
             abort(404);
         }
@@ -318,6 +353,9 @@ class BudgetController extends Controller
      */
     public function categoryInfo(Category $category, Request $request)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $excludeBudgetId = $request->query('exclude_budget_id');
 
         $saldo = (float) Saldo::where('category_id', $category->id)->sum('amount');

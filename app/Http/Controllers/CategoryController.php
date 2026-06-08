@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Support\FinanceContext;
+use App\Services\FinanceContextService;
 use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -10,7 +12,11 @@ class CategoryController extends Controller
 {
     public function data()
     {
-        $categories = Category::orderBy('name', 'asc');
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
+        $categories = Category::forContext(FinanceContext::USAHA_KEBUN)
+            ->orderBy('name', 'asc');
 
         return DataTables::of($categories)
             ->addColumn('action', 'category.action')
@@ -21,6 +27,10 @@ class CategoryController extends Controller
 
     public function index()
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
+
         return view('category.index', [
             'title' => 'Jenis Usaha',
         ]);
@@ -28,6 +38,10 @@ class CategoryController extends Controller
 
     public function create()
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
+
         return view('category.create', [
             'title' => 'Tambah Jenis Usaha',
         ]);
@@ -35,14 +49,24 @@ class CategoryController extends Controller
 
     public function store(Request $request)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
+        $context = FinanceContext::USAHA_KEBUN;
+
         try {
             $validatedData = $request->validate([
-                'name' => 'required|max:255|unique:categories,name',
+                'name' => [
+                    'required',
+                    'max:255',
+                    \Illuminate\Validation\Rule::unique('categories', 'name')->where('context', $context),
+                ],
             ], [
                 'name.unique' => 'Maaf, jenis usaha sudah terdaftar!',
                 'name.required' => 'Nama jenis usaha tidak boleh kosong!',
             ]);
 
+            $validatedData['context'] = $context;
             $category = Category::create($validatedData);
 
             if ($request->ajax()) {
@@ -72,6 +96,9 @@ class CategoryController extends Controller
 
     public function edit(Category $category)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         return view('category.edit', [
             'title' => 'Ubah Jenis Usaha',
             'category' => $category,
@@ -80,8 +107,17 @@ class CategoryController extends Controller
 
     public function update(Request $request, Category $category)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $validatedData = $request->validate([
-            'name' => 'required|max:255|unique:categories,name,'.$category->id,
+            'name' => [
+                'required',
+                'max:255',
+                \Illuminate\Validation\Rule::unique('categories', 'name')
+                    ->where('context', $category->context)
+                    ->ignore($category->id),
+            ],
         ], [
             'name.unique' => 'Maaf, jenis usaha sudah terdaftar!',
             'name.required' => 'Nama jenis usaha tidak boleh kosong!',
@@ -94,6 +130,9 @@ class CategoryController extends Controller
 
     public function destroy(Category $category)
     {
+        if ($r = FinanceContextService::guardFarm()) {
+            return $r;
+        }
         $category->delete();
 
         return redirect()->route('categories.index')->with('danger', 'Jenis usaha berhasil dihapus!');

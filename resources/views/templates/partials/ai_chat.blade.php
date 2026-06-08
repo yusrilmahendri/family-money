@@ -7,7 +7,7 @@
         <div class="ai-chat-header">
             <div>
                 <strong>Asisten Keuangan</strong>
-                <small>Tanya apa saja seputar keuangan Anda</small>
+                <small id="ai-chat-ctx">Konteks: {{ \App\Support\FinanceContext::label() }}</small>
             </div>
             <button type="button" id="ai-chat-close" aria-label="Tutup">
                 <i class="fa fa-times"></i>
@@ -233,6 +233,10 @@
         .then(function(r) { return r.json(); })
         .then(function(data) {
             typing.remove();
+            var ctxEl = document.getElementById('ai-chat-ctx');
+            if (data.context_label && ctxEl) {
+                ctxEl.textContent = 'Konteks: ' + data.context_label;
+            }
             if (data.ok) {
                 addMsg('assistant', data.answer);
                 history.push({ role: 'user', content: msg });

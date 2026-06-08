@@ -12,12 +12,25 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class TransactionExport implements FromCollection, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
 {
+    protected ?string $context;
+
+    public function __construct(?string $context = null)
+    {
+        $this->context = $context;
+    }
+
     /**
     * @return \Illuminate\Support\Collection
     */
     public function collection()
     {
-        return Transaction::with(['category', 'items'])->orderBy('transaction_date', 'desc')->get();
+        $query = Transaction::with(['category', 'items'])->orderBy('transaction_date', 'desc');
+
+        if ($this->context) {
+            $query->forContext($this->context);
+        }
+
+        return $query->get();
     }
 
     /**

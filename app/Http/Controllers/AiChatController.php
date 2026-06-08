@@ -3,7 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Service\AiService;
-use App\Service\FinanceContextService;
+use App\Services\Insight\InsightDataService;
+use App\Support\FinanceContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -11,7 +12,7 @@ class AiChatController extends Controller
 {
     public function __construct(
         protected AiService $ai,
-        protected FinanceContextService $context,
+        protected InsightDataService $data,
     ) {}
 
     public function ask(Request $request): JsonResponse
@@ -23,9 +24,14 @@ class AiChatController extends Controller
             'history.*.content' => ['required_with:history', 'string', 'max:4000'],
         ]);
 
+        $ctx = $this->data->getContext();
+        $ctxLabel = $this->data->getContextLabel();
+
         if (!$this->ai->isConfigured()) {
             return response()->json([
                 'ok' => false,
+                'context' => $ctx,
+                'context_label' => $ctxLabel,
                 'error' => sprintf(
                     'Fitur AI belum aktif. Tambahkan %s di file .env (provider: %s).',
                     $this->ai->envKeyName(),
@@ -34,25 +40,32 @@ class AiChatController extends Controller
             ], 200);
         }
 
-        $contextText = $this->context->snapshotAsText();
+        // Snapshot HANYA untuk konteks aktif (30 hari terakhir + agregasi)
+        $contextText = $this->data->getChatContextText();
+
+        $fokus = $ctx === FinanceContext::USAHA_KEBUN
+            ? 'KEUANGAN USAHA KEBUN (pemasukan hasil usaha & biaya operasional)'
+            : 'KEUANGAN PRIBADI (pengeluaran & kebutuhan pribadi)';
+
+        $istilah = $ctx === FinanceContext::USAHA_KEBUN
+            ? "- \"Pemasukan\" = hasil/penjualan usaha kebun.\n".
+              "- \"Biaya Operasional\" = pengeluaran usaha (gaji, upah, pupuk, dll.).\n".
+              "- \"Laba/Rugi\" = Pemasukan - Biaya Operasional."
+            : "- \"Pengeluaran\" = transaksi/kebutuhan pribadi (mis. BPJS, belanja).";
 
         $system = <<<SYS
-Anda adalah "Asisten Keuangan Keluarga" untuk aplikasi family-keuangan.
-Jawab dengan singkat, ramah, dan dalam BAHASA INDONESIA.
-Selalu gunakan format Rupiah (contoh: Rp 1.250.000) untuk uang.
-Jangan mengarang angka — gunakan HANYA data yang diberikan di bawah.
-Jika data tidak ada / belum cukup, jawab terus-terang & beri saran cara mengisi data tsb.
-
-Konteks data keuangan pengguna (JSON):
-$contextText
+Anda adalah "Asisten Keuangan" untuk aplikasi family-keuangan.
+Anda sedang membantu pengguna pada konteks: {$ctxLabel} — yaitu {$fokus}.
+PENTING: jawab HANYA berdasarkan data konteks ini. JANGAN mencampur atau menyebut konteks lain
+(jika ini PRIBADI jangan bahas usaha kebun; jika ini USAHA jangan bahas pengeluaran pribadi).
+Jawab singkat, ramah, dalam BAHASA INDONESIA, dan gunakan format Rupiah (Rp 1.250.000).
+Jangan mengarang angka — gunakan HANYA data di bawah. Jika data belum cukup, katakan terus terang & beri saran.
 
 Petunjuk istilah:
-- "Saldo" = total dana (sudah termasuk pemasukan usaha yang auto-sync).
-- "Anggaran" = plafon belanja per Jenis Usaha.
-- "Biaya Operasional" = aktivitas anggaran (gaji, upah, pupuk, dll.) yang mengurangi anggaran.
-- "Transaksi Pribadi" = pengeluaran non-usaha (mis. BPJS) yang mengurangi saldo.
-- "Saldo Bebas" = Saldo - Anggaran - Transaksi Pribadi.
-- "Laba/Rugi" = Pemasukan Usaha - Biaya Operasional pada periode tertentu.
+{$istilah}
+
+Data keuangan (sudah difilter untuk konteks {$ctxLabel}):
+$contextText
 SYS;
 
         $messages = [['role' => 'system', 'content' => $system]];
@@ -66,11 +79,18 @@ SYS;
         $resp = $this->ai->chat($messages, ['temperature' => 0.3, 'max_tokens' => 600]);
 
         if (!$resp['ok']) {
-            return response()->json(['ok' => false, 'error' => $resp['error'] ?? 'Gagal memanggil AI.'], 200);
+            return response()->json([
+                'ok' => false,
+                'context' => $ctx,
+                'context_label' => $ctxLabel,
+                'error' => $resp['error'] ?? 'Gagal memanggil AI.',
+            ], 200);
         }
 
         return response()->json([
             'ok' => true,
+            'context' => $ctx,
+            'context_label' => $ctxLabel,
             'answer' => trim($resp['text'] ?? ''),
         ]);
     }

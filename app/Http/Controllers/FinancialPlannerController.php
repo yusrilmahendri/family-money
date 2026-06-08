@@ -7,6 +7,7 @@ use App\Models\Debt;
 use App\Models\SavingsGoal;
 use App\Models\Transaction;
 use App\Service\FinancialPlannerService;
+use App\Services\FinanceContextService;
 use Carbon\Carbon;
 
 class FinancialPlannerController extends Controller
@@ -17,6 +18,9 @@ class FinancialPlannerController extends Controller
 
     public function index()
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         $now = Carbon::now();
 
         $daily = $this->plannerService->dailyExpenseTotals(14);

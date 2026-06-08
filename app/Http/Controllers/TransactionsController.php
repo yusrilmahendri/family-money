@@ -9,6 +9,8 @@ use App\Models\Category;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Models\Saldo;
+use App\Support\FinanceContext;
+use App\Services\FinanceContextService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use App\Service\BudgetService;
@@ -21,7 +23,12 @@ class TransactionsController extends Controller
 {
     public function data()
     {
-        $transactions = Transaction::orderBy('transaction_date', 'desc');
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
+
+        $transactions = Transaction::forContext(FinanceContext::PRIBADI)
+            ->orderBy('transaction_date', 'desc');
 
         return DataTables::of($transactions)
             ->addColumn('name', function (Transaction $model) {
@@ -61,26 +68,31 @@ class TransactionsController extends Controller
      */
     public function index()
     {
-        // Total saldo dari tabel saldos
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
+        $context = FinanceContext::PRIBADI;
+
+        // Total saldo bersifat GLOBAL (shared semua konteks)
         $totalSaldo = Saldo::sum('amount');
 
-        // Total amount dari tabel transactions
-        $totalAmount = Transaction::sum('amount');
-        // Total keseluruhan amount + price
+        // Total transaksi konteks aktif (sesuai daftar yang ditampilkan)
+        $totalAmount = Transaction::forContext($context)->sum('amount');
         $totalSemua = $totalAmount;
 
-        // Sisa saldo (saldo - total transaksi)
-        $sisaSaldo = $totalSaldo - $totalSemua;
-        $dateTransaksi = Transaction::latest()->first();
+        // Sisa saldo global = saldo - seluruh transaksi (semua konteks)
+        $sisaSaldo = $totalSaldo - Transaction::sum('amount');
+        $dateTransaksi = Transaction::forContext($context)->latest()->first();
 
         return view('transactions.index', [
-            'transaksi' => Transaction::all(),
+            'transaksi' => Transaction::forContext($context)->get(),
             'dateTransaksi' => $dateTransaksi,
-            'title' => 'Transaction List',
+            'title' => 'Transaksi '.FinanceContext::label($context),
             'totalAmount' => $totalAmount,
             'totalSemua' => $totalSemua,
             'totalSaldo' => $totalSaldo,
             'sisaSaldo' => $sisaSaldo,
+            'contextLabel' => FinanceContext::label($context),
         ]);
     }
     /**
@@ -88,9 +100,15 @@ class TransactionsController extends Controller
      */
     public function create()
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
+        $context = FinanceContext::PRIBADI;
+
         return view('transactions.create', [
             'title' => 'Tambah Transaksi',
-            'categories' => Category::orderBy('name')->get(),
+            'context' => $context,
+            'categories' => Category::forContext($context)->orderBy('name')->get(),
         ]);
     }
 
@@ -100,6 +118,10 @@ class TransactionsController extends Controller
      */
     public function store(Request $request)
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
+
         $validated = $request->validate([
             'total' => ['required', 'string'],
             'description' => ['nullable', 'string', 'max:255'],
@@ -125,6 +147,7 @@ class TransactionsController extends Controller
 
         Transaction::create([
             'category_id' => $validated['category_id'] ?? null,
+            'context' => FinanceContext::PRIBADI,
             'amount' => $total,
             'transaction_date' => $validated['date'],
             'description' => $validated['description'] ?? null,
@@ -216,8 +239,16 @@ class TransactionsController extends Controller
      */
     public function edit(string $id)
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
+        $transaction = Transaction::findOrFail($id);
+
         return view('transactions.edit', [
-            'transaction' => Transaction::findOrFail($id),
+            'transaction' => $transaction,
+            'context' => $transaction->context ?? FinanceContext::PRIBADI,
+            'categories' => Category::forContext($transaction->context ?? FinanceContext::PRIBADI)
+                ->orderBy('name')->get(),
         ]);
     }
 
@@ -226,6 +257,9 @@ class TransactionsController extends Controller
      */
     public function update(Request $request, $id)
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         $transaction = Transaction::findOrFail($id);
 
         $validated = $request->validate([
@@ -286,7 +320,12 @@ class TransactionsController extends Controller
      */
     public function exportExcel()
     {
-        return Excel::download(new TransactionExport, 'data-transaksi-' . date('Y-m-d') . '.xlsx');
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
+        $context = FinanceContext::PRIBADI;
+
+        return Excel::download(new TransactionExport($context), 'data-transaksi-' . strtolower($context) . '-' . date('Y-m-d') . '.xlsx');
     }
 
     /**
@@ -294,15 +333,24 @@ class TransactionsController extends Controller
      */
     public function exportPdf()
     {
-        $transactions = Transaction::with(['category', 'items'])->orderBy('transaction_date', 'desc')->get();
-        $totalTransaksi = Transaction::sum('amount');
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
+        $context = FinanceContext::PRIBADI;
+
+        $transactions = Transaction::with(['category', 'items'])
+            ->forContext($context)
+            ->orderBy('transaction_date', 'desc')
+            ->get();
+        $totalTransaksi = Transaction::forContext($context)->sum('amount');
 
         $pdf = Pdf::loadView('transactions.pdf', [
             'transactions' => $transactions,
             'totalTransaksi' => $totalTransaksi,
+            'contextLabel' => FinanceContext::label($context),
         ]);
 
-        return $pdf->download('data-transaksi-' . date('Y-m-d') . '.pdf');
+        return $pdf->download('data-transaksi-' . strtolower($context) . '-' . date('Y-m-d') . '.pdf');
     }
 
     /**
@@ -310,6 +358,9 @@ class TransactionsController extends Controller
      */
     public function destroy(string $id)
     {
+        if ($r = FinanceContextService::guardPersonal()) {
+            return $r;
+        }
         $transaction = Transaction::findOrFail($id);
 
         // Hapus file nota jika ada
