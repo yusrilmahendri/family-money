@@ -49,19 +49,22 @@ class BudgetController extends Controller
             ->toJson();
     }
 
-    public function index()
+    public function index(\App\Service\SaldoService $saldoService)
     {
         if ($r = FinanceContextService::guardFarm()) {
             return $r;
         }
         $now = Carbon::now();
 
-        // Ringkasan global
+        // Ringkasan global yang dinamis (sumber kebenaran tunggal — sama dengan Dashboard & Saldo).
         // Catatan: Pemasukan Usaha (Income) sudah auto-tersinkron ke tabel saldos
         // melalui IncomeController, jadi cukup pakai Saldo::sum() agar tidak double-count.
-        $totalSaldo = (float) Saldo::sum('amount');
+        $global = $saldoService->globalSummary($now);
+        $totalSaldo = $global['masuk'];          // semua saldo masuk (awal s/d bulan ini)
+        $totalTransaksi = $global['transaksi'];
+        $totalBiaya = $global['biaya'];
+        $sisaSaldoGlobal = $global['sisa'];      // = masuk - (transaksi + biaya operasional)
         $totalDianggarkan = (float) Budget::sum('amount');
-        $totalTransaksi = (float) Transaction::sum('amount');
         $saldoBebas = $totalSaldo - $totalDianggarkan - $totalTransaksi;
 
         // Plafon bulan ini (untuk indikator pengeluaran bulan berjalan)
@@ -117,7 +120,11 @@ class BudgetController extends Controller
             'total_saldo' => $totalSaldo,
             'total_dianggarkan' => $totalDianggarkan,
             'total_transaksi' => $totalTransaksi,
+            'total_biaya' => $totalBiaya,
             'saldo_bebas' => $saldoBebas,
+            'sisa_saldo_global' => $sisaSaldoGlobal,
+            'saldo_keluar' => $global['keluar'],
+            'saldo_periode_label' => $global['periode_label'],
             'rincian_per_kategori' => $rincianPerKategori,
         ]);
     }

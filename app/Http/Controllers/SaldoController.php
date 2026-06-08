@@ -11,6 +11,7 @@ use App\Models\Income;
 use App\Models\Budget;
 use App\Models\Transaction;
 use App\Exports\SaldoExport;
+use App\Service\SaldoService;
 use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
@@ -56,7 +57,7 @@ class SaldoController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(SaldoService $saldoService)
     {
         $updated_saldo = Saldo::latest()->first(); // ambil transaksi saldo terbaru
 
@@ -66,16 +67,20 @@ class SaldoController extends Controller
         // Jadi:
         //   - Saldo Manual  = saldo yang income_id-nya NULL
         //   - Pemasukan Usaha = saldo yang income_id-nya TIDAK NULL
-        //   - Total Dana    = Saldo::sum() (semua)
         $totalSaldoManual = $hasIncomeIdColumn
             ? (float) Saldo::whereNull('income_id')->sum('amount')
             : (float) Saldo::sum('amount');
         $totalPemasukan   = $hasIncomeIdColumn
             ? (float) Saldo::whereNotNull('income_id')->sum('amount')
             : 0;
-        $totalDana        = (float) Saldo::sum('amount');
+
+        // Ringkasan saldo global yang dinamis (sumber kebenaran tunggal, sama dgn Dashboard & Anggaran)
+        $global = $saldoService->globalSummary();
+        $totalDana        = $global['masuk'];   // semua saldo masuk (awal s/d bulan ini)
+        $totalTransaksi   = $global['transaksi'];
+        $totalBiaya       = $global['biaya'];
+        $sisaSaldoGlobal  = $global['sisa'];     // = masuk - (transaksi + biaya operasional)
         $totalDianggarkan = (float) Budget::sum('amount');
-        $totalTransaksi   = (float) Transaction::sum('amount');
         $saldoBebas       = $totalDana - $totalDianggarkan - $totalTransaksi;
 
         return view('saldo.index', [
@@ -86,7 +91,11 @@ class SaldoController extends Controller
             'total_dana'         => $totalDana,
             'total_dianggarkan'  => $totalDianggarkan,
             'total_transaksi'    => $totalTransaksi,
+            'total_biaya'        => $totalBiaya,
             'saldo_bebas'        => $saldoBebas,
+            'sisa_saldo_global'  => $sisaSaldoGlobal,
+            'saldo_keluar'       => $global['keluar'],
+            'saldo_periode_label'=> $global['periode_label'],
             'updated_saldo'      => $updated_saldo,
             'title'              => 'Saldo List',
             'categories'         => Category::all(),

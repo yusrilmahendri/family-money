@@ -19,12 +19,16 @@
                     </div>
                     <div style="text-align:right;">
                         <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:.5px;">
-                            <i class="fa fa-globe"></i> Saldo Global (Shared)
+                            <i class="fa fa-globe"></i> Sisa Saldo Global (Shared)
                         </span>
-                        <div style="font-size:24px; font-weight:800; color:#28a745; word-break:break-all;">
+                        <div style="font-size:24px; font-weight:800; color:{{ $totalSaldo < 0 ? '#d9534f' : '#28a745' }}; word-break:break-all;">
                             Rp {{ number_format($totalSaldo, 0, ',', '.') }}
                         </div>
-                        <a href="{{ route('apps.index') }}" class="btn btn-default btn-xs">
+                        <small class="text-muted" style="display:block;">
+                            Saldo masuk (awal s/d {{ $saldoPeriodeLabel }}): <strong>Rp {{ number_format($saldoMasuk, 0, ',', '.') }}</strong>
+                            &minus; Pengeluaran: <strong>Rp {{ number_format($saldoKeluar, 0, ',', '.') }}</strong>
+                        </small>
+                        <a href="{{ route('apps.index') }}" class="btn btn-default btn-xs" style="margin-top:4px;">
                             <i class="fa fa-exchange"></i> Ganti aplikasi
                         </a>
                     </div>

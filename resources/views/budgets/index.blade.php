@@ -13,11 +13,13 @@
         <div class="row row-eq" style="margin-top: 15px;">
             <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 15px;">
                 <div class="summary-card" style="border: 2px solid #f0f0f0; box-shadow: 0px 2px 8px rgba(0,0,0,0.05); border-radius: 12px; padding: 15px; background: #fff; height: 100%;">
-                    <h6 class="text-muted" style="margin: 0 0 8px; font-size: 13px;">Total Dana</h6>
-                    <h3 class="text-primary" style="font-weight: 700; margin: 0; font-size: 22px; word-break: break-all;">
-                        Rp {{ number_format($total_saldo ?? 0, 0, ',', '.') }}
+                    <h6 class="text-muted" style="margin: 0 0 8px; font-size: 13px;">Sisa Saldo (Global)</h6>
+                    <h3 class="{{ ($sisa_saldo_global ?? 0) < 0 ? 'text-danger' : 'text-success' }}" style="font-weight: 700; margin: 0; font-size: 22px; word-break: break-all;">
+                        Rp {{ number_format($sisa_saldo_global ?? 0, 0, ',', '.') }}
                     </h3>
-                    <small class="text-muted">Saldo + Pemasukan Usaha</small>
+                    <small class="text-muted">
+                        Masuk Rp {{ number_format($total_saldo ?? 0, 0, ',', '.') }} &minus; Keluar Rp {{ number_format($saldo_keluar ?? 0, 0, ',', '.') }}
+                    </small>
                 </div>
             </div>
             <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 15px;">
@@ -39,11 +41,11 @@
             </div>
             <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 15px;">
                 <div class="summary-card" style="border: 2px solid #f0f0f0; box-shadow: 0px 2px 8px rgba(0,0,0,0.05); border-radius: 12px; padding: 15px; background: #fff; height: 100%;">
-                    <h6 class="text-muted" style="margin: 0 0 8px; font-size: 13px;">Saldo Bebas (Tersisa)</h6>
+                    <h6 class="text-muted" style="margin: 0 0 8px; font-size: 13px;">Saldo Bebas (Belum Dianggarkan)</h6>
                     <h3 class="{{ ($saldo_bebas ?? 0) < 0 ? 'text-danger' : 'text-success' }}" style="font-weight: 700; margin: 0; font-size: 22px; word-break: break-all;">
                         Rp {{ number_format($saldo_bebas ?? 0, 0, ',', '.') }}
                     </h3>
-                    <small class="text-muted">Dana − Anggaran − Trx Pribadi</small>
+                    <small class="text-muted">Masuk − Anggaran − Trx Pribadi</small>
                 </div>
             </div>
         </div>

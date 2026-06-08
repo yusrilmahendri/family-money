@@ -49,6 +49,20 @@ class DashboardController extends Controller
     }
 
     /**
+     * Saldo GLOBAL (shared) — bersifat dinamis.
+     *
+     * - masuk  : seluruh saldo yang masuk sejak awal s/d akhir bulan berjalan
+     *            (saldo manual + pemasukan usaha yang auto-sync).
+     * - keluar : seluruh pengeluaran NYATA (transaksi pribadi + biaya operasional usaha),
+     *            apa pun konteksnya — keduanya mengurangi saldo yang sama.
+     * - sisa   : masuk - keluar (inilah angka "Saldo Global" yang ditampilkan).
+     */
+    protected function saldoGlobal(Carbon $now): array
+    {
+        return $this->saldoService->globalSummary($now);
+    }
+
+    /**
      * Dashboard Keuangan PRIBADI.
      * Widget: pengeluaran pribadi bulan ini, total cicilan, goals tabungan.
      */
@@ -58,8 +72,9 @@ class DashboardController extends Controller
         $year = $now->year;
         $month = $now->month;
 
-        // Saldo tetap GLOBAL/shared
-        $totalSaldo = (float) Saldo::sum('amount');
+        // Saldo GLOBAL/shared — net (masuk - seluruh pengeluaran), dinamis
+        $saldo = $this->saldoGlobal($now);
+        $totalSaldo = $saldo['sisa'];
 
         // Transaksi pribadi
         $trxContext = FinanceContext::PRIBADI;
@@ -102,6 +117,11 @@ class DashboardController extends Controller
         return view('dashboard.personal', [
             'financeContextLabel' => FinanceContext::label($trxContext),
             'totalSaldo' => $totalSaldo,
+            'saldoMasuk' => $saldo['masuk'],
+            'saldoKeluar' => $saldo['keluar'],
+            'saldoKeluarTransaksi' => $saldo['transaksi'],
+            'saldoKeluarBiaya' => $saldo['biaya'],
+            'saldoPeriodeLabel' => $saldo['periode_label'],
             'pengeluaranBulanIni' => $pengeluaranBulanIni,
             'totalPengeluaran' => $totalPengeluaran,
             'jumlahTransaksiBulanIni' => $jumlahTransaksiBulanIni,
@@ -126,8 +146,9 @@ class DashboardController extends Controller
 
         $hasIncomes = Schema::hasTable('incomes');
 
-        // Saldo tetap GLOBAL/shared
-        $totalSaldo = (float) Saldo::sum('amount');
+        // Saldo GLOBAL/shared — net (masuk - seluruh pengeluaran), dinamis
+        $saldo = $this->saldoGlobal($now);
+        $totalSaldo = $saldo['sisa'];
 
         // Pemasukan usaha
         $pemasukanBulanIni = $hasIncomes
@@ -194,6 +215,11 @@ class DashboardController extends Controller
         return view('dashboard.farm', [
             'financeContextLabel' => FinanceContext::label(FinanceContext::USAHA_KEBUN),
             'totalSaldo' => $totalSaldo,
+            'saldoMasuk' => $saldo['masuk'],
+            'saldoKeluar' => $saldo['keluar'],
+            'saldoKeluarTransaksi' => $saldo['transaksi'],
+            'saldoKeluarBiaya' => $saldo['biaya'],
+            'saldoPeriodeLabel' => $saldo['periode_label'],
             'pemasukanBulanIni' => $pemasukanBulanIni,
             'totalPemasukan' => $totalPemasukan,
             'biayaBulanIni' => $biayaBulanIni,
