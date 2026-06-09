@@ -49,23 +49,24 @@ class BudgetController extends Controller
             ->toJson();
     }
 
-    public function index(\App\Service\SaldoService $saldoService)
+    public function index(\App\Services\SaldoGlobalService $saldoGlobal)
     {
         if ($r = FinanceContextService::guardFarm()) {
             return $r;
         }
         $now = Carbon::now();
 
-        // Ringkasan global yang dinamis (sumber kebenaran tunggal — sama dengan Dashboard & Saldo).
-        // Catatan: Pemasukan Usaha (Income) sudah auto-tersinkron ke tabel saldos
-        // melalui IncomeController, jadi cukup pakai Saldo::sum() agar tidak double-count.
-        $global = $saldoService->globalSummary($now);
-        $totalSaldo = $global['masuk'];          // semua saldo masuk (awal s/d bulan ini)
-        $totalTransaksi = $global['transaksi'];
-        $totalBiaya = $global['biaya'];
-        $sisaSaldoGlobal = $global['sisa'];      // = masuk - (transaksi + biaya operasional)
+        // Saldo global event-based (sumber kebenaran tunggal — sama dengan Dashboard & Saldo).
+        // Anggaran = planning, TIDAK mengurangi saldo. Saldo hanya berkurang saat realisasi.
+        $breakdown = $saldoGlobal->getBreakdown();
+        $totalSaldo = $breakdown['income'];          // total uang masuk
+        $totalTransaksi = $breakdown['transactions'];
+        $totalBiaya = $breakdown['operational'];
+        $sisaSaldoGlobal = $breakdown['saldo'];      // income - cashout
         $totalDianggarkan = (float) Budget::sum('amount');
-        $saldoBebas = $totalSaldo - $totalDianggarkan - $totalTransaksi;
+        // "Saldo bebas" = sisa saldo nyata dikurangi komitmen anggaran yang belum direalisasi.
+        $belumRealisasiAnggaran = max(0, $totalDianggarkan - $totalBiaya);
+        $saldoBebas = $sisaSaldoGlobal - $belumRealisasiAnggaran;
 
         // Plafon bulan ini (untuk indikator pengeluaran bulan berjalan)
         $budgetCap = (float) Budget::query()
@@ -123,8 +124,7 @@ class BudgetController extends Controller
             'total_biaya' => $totalBiaya,
             'saldo_bebas' => $saldoBebas,
             'sisa_saldo_global' => $sisaSaldoGlobal,
-            'saldo_keluar' => $global['keluar'],
-            'saldo_periode_label' => $global['periode_label'],
+            'saldo_keluar' => $breakdown['cash_out'],
             'rincian_per_kategori' => $rincianPerKategori,
         ]);
     }
@@ -157,8 +157,8 @@ class BudgetController extends Controller
 
         $amount = (float) $this->parseRupiah($validated['amount']);
 
-        $this->ensureSaldoEnough((int) $validated['category_id'], $amount);
-
+        // Anggaran = perencanaan (commitment), TIDAK mengurangi saldo global.
+        // Saldo baru berkurang saat biaya operasional benar-benar dicatat (realisasi).
         Budget::create([
             'category_id' => $validated['category_id'],
             'amount' => $amount,
@@ -167,7 +167,7 @@ class BudgetController extends Controller
             'description' => $validated['description'] ?? null,
         ]);
 
-        return redirect()->route('budgets.index')->with('success', 'Anggaran berhasil disimpan. Saldo jenis usaha telah dipotong.');
+        return redirect()->route('budgets.index')->with('success', 'Anggaran berhasil disimpan (rencana). Saldo berkurang saat biaya operasional dicatat.');
     }
 
     public function show(Budget $budget)
@@ -230,8 +230,7 @@ class BudgetController extends Controller
 
         $amount = (float) $this->parseRupiah($validated['amount']);
 
-        $this->ensureSaldoEnough((int) $validated['category_id'], $amount, $budget->id);
-
+        // Anggaran = perencanaan (commitment), TIDAK mengurangi saldo global.
         $budget->update([
             'category_id' => $validated['category_id'],
             'amount' => $amount,
@@ -389,33 +388,6 @@ class BudgetController extends Controller
             'transaksi_formatted' => 'Rp '.number_format($transaksi, 0, ',', '.'),
             'tersedia_formatted' => 'Rp '.number_format($tersedia, 0, ',', '.'),
         ]);
-    }
-
-    private function ensureSaldoEnough(int $categoryId, float $amount, ?int $excludeBudgetId = null): void
-    {
-        $saldo = (float) Saldo::where('category_id', $categoryId)->sum('amount');
-
-        $budgetQuery = Budget::where('category_id', $categoryId);
-        if ($excludeBudgetId) {
-            $budgetQuery->where('id', '!=', $excludeBudgetId);
-        }
-        $sudahDianggarkan = (float) $budgetQuery->sum('amount');
-        $transaksiKategori = (float) Transaction::where('category_id', $categoryId)->sum('amount');
-        $tersedia = $saldo - $sudahDianggarkan - $transaksiKategori;
-
-        if ($amount > $tersedia + 0.01) {
-            $kategori = Category::find($categoryId);
-            $namaKategori = $kategori?->name ?? 'kategori ini';
-
-            throw ValidationException::withMessages([
-                'amount' => sprintf(
-                    'Saldo "%s" tidak cukup. Tersedia: Rp %s (sudah dipotong anggaran lain dan transaksi pribadi), anggaran yang Anda masukkan: Rp %s.',
-                    $namaKategori,
-                    number_format($tersedia, 0, ',', '.'),
-                    number_format($amount, 0, ',', '.')
-                ),
-            ]);
-        }
     }
 
     private function parseRupiah(string $raw): string

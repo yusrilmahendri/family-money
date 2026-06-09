@@ -14,7 +14,7 @@ use App\Models\SavingsGoal;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Service\RecurringTransactionRunner;
-use App\Service\SaldoService;
+use App\Services\SaldoGlobalService;
 use App\Support\FinanceContext;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -24,11 +24,11 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class DashboardController extends Controller
 {
-    protected $saldoService;
+    protected $saldoGlobalService;
 
-    public function __construct(SaldoService $saldoService)
+    public function __construct(SaldoGlobalService $saldoGlobalService)
     {
-        $this->saldoService = $saldoService;
+        $this->saldoGlobalService = $saldoGlobalService;
     }
 
     public function index(RecurringTransactionRunner $runner)
@@ -59,7 +59,7 @@ class DashboardController extends Controller
      */
     protected function saldoGlobal(Carbon $now): array
     {
-        return $this->saldoService->globalSummary($now);
+        return $this->saldoGlobalService->getBreakdown();
     }
 
     /**
@@ -72,9 +72,9 @@ class DashboardController extends Controller
         $year = $now->year;
         $month = $now->month;
 
-        // Saldo GLOBAL/shared — net (masuk - seluruh pengeluaran), dinamis
+        // Saldo GLOBAL/shared — event-based (income - cashout), dinamis
         $saldo = $this->saldoGlobal($now);
-        $totalSaldo = $saldo['sisa'];
+        $totalSaldo = $saldo['saldo'];
 
         // Transaksi pribadi
         $trxContext = FinanceContext::PRIBADI;
@@ -117,11 +117,9 @@ class DashboardController extends Controller
         return view('dashboard.personal', [
             'financeContextLabel' => FinanceContext::label($trxContext),
             'totalSaldo' => $totalSaldo,
-            'saldoMasuk' => $saldo['masuk'],
-            'saldoKeluar' => $saldo['keluar'],
-            'saldoKeluarTransaksi' => $saldo['transaksi'],
-            'saldoKeluarBiaya' => $saldo['biaya'],
-            'saldoPeriodeLabel' => $saldo['periode_label'],
+            'saldoMasuk' => $saldo['income'],
+            'saldoKeluar' => $saldo['cash_out'],
+            'saldoBreakdown' => $saldo,
             'pengeluaranBulanIni' => $pengeluaranBulanIni,
             'totalPengeluaran' => $totalPengeluaran,
             'jumlahTransaksiBulanIni' => $jumlahTransaksiBulanIni,
@@ -146,9 +144,9 @@ class DashboardController extends Controller
 
         $hasIncomes = Schema::hasTable('incomes');
 
-        // Saldo GLOBAL/shared — net (masuk - seluruh pengeluaran), dinamis
+        // Saldo GLOBAL/shared — event-based (income - cashout), dinamis
         $saldo = $this->saldoGlobal($now);
-        $totalSaldo = $saldo['sisa'];
+        $totalSaldo = $saldo['saldo'];
 
         // Pemasukan usaha
         $pemasukanBulanIni = $hasIncomes
@@ -215,11 +213,9 @@ class DashboardController extends Controller
         return view('dashboard.farm', [
             'financeContextLabel' => FinanceContext::label(FinanceContext::USAHA_KEBUN),
             'totalSaldo' => $totalSaldo,
-            'saldoMasuk' => $saldo['masuk'],
-            'saldoKeluar' => $saldo['keluar'],
-            'saldoKeluarTransaksi' => $saldo['transaksi'],
-            'saldoKeluarBiaya' => $saldo['biaya'],
-            'saldoPeriodeLabel' => $saldo['periode_label'],
+            'saldoMasuk' => $saldo['income'],
+            'saldoKeluar' => $saldo['cash_out'],
+            'saldoBreakdown' => $saldo,
             'pemasukanBulanIni' => $pemasukanBulanIni,
             'totalPemasukan' => $totalPemasukan,
             'biayaBulanIni' => $biayaBulanIni,

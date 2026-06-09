@@ -25,8 +25,8 @@
                             Rp {{ number_format($totalSaldo, 0, ',', '.') }}
                         </div>
                         <small class="text-muted" style="display:block;">
-                            Saldo masuk (awal s/d {{ $saldoPeriodeLabel }}): <strong>Rp {{ number_format($saldoMasuk, 0, ',', '.') }}</strong>
-                            &minus; Pengeluaran: <strong>Rp {{ number_format($saldoKeluar, 0, ',', '.') }}</strong>
+                            Total masuk: <strong>Rp {{ number_format($saldoMasuk, 0, ',', '.') }}</strong>
+                            &minus; Uang keluar: <strong>Rp {{ number_format($saldoKeluar, 0, ',', '.') }}</strong>
                         </small>
                         <a href="{{ route('apps.index') }}" class="btn btn-default btn-xs" style="margin-top:4px;">
                             <i class="fa fa-exchange"></i> Ganti aplikasi
@@ -36,6 +36,35 @@
             </div>
         </div>
     </div>
+
+    {{-- Rincian Saldo Global (event-based) --}}
+    @isset($saldoBreakdown)
+    <div class="row" style="margin-top:-5px;">
+        <div class="col-xs-12">
+            <details class="panel panel-default" style="margin-bottom:15px;">
+                <summary style="cursor:pointer; padding:10px 15px; font-size:13px; color:#666;">
+                    <i class="fa fa-list-ul"></i> Rincian saldo global (uang masuk &amp; keluar)
+                </summary>
+                <div class="panel-body" style="border-top:1px solid #eee;">
+                    <div class="row" style="font-size:13px;">
+                        <div class="col-xs-6 col-md-3"><span class="text-muted">Total Pemasukan</span><br><strong class="text-success">Rp {{ number_format($saldoBreakdown['income'], 0, ',', '.') }}</strong></div>
+                        <div class="col-xs-6 col-md-3"><span class="text-muted">Transaksi (cash out)</span><br><strong class="text-danger">Rp {{ number_format($saldoBreakdown['transactions'], 0, ',', '.') }}</strong></div>
+                        <div class="col-xs-6 col-md-3"><span class="text-muted">Pembayaran Utang</span><br><strong class="text-danger">Rp {{ number_format($saldoBreakdown['debt_payments'], 0, ',', '.') }}</strong></div>
+                        <div class="col-xs-6 col-md-3"><span class="text-muted">Kontribusi Goal</span><br><strong class="text-danger">Rp {{ number_format($saldoBreakdown['goal_contributions'], 0, ',', '.') }}</strong></div>
+                    </div>
+                    <div class="row" style="font-size:13px; margin-top:10px;">
+                        <div class="col-xs-6 col-md-3"><span class="text-muted">Biaya Operasional (posted)</span><br><strong class="text-danger">Rp {{ number_format($saldoBreakdown['operational'], 0, ',', '.') }}</strong></div>
+                        <div class="col-xs-6 col-md-3"><span class="text-muted">Total Uang Keluar</span><br><strong class="text-danger">Rp {{ number_format($saldoBreakdown['cash_out'], 0, ',', '.') }}</strong></div>
+                        <div class="col-xs-12 col-md-6"><span class="text-muted">Saldo Global (income &minus; cash out)</span><br><strong class="{{ $saldoBreakdown['saldo'] < 0 ? 'text-danger' : 'text-success' }}">Rp {{ number_format($saldoBreakdown['saldo'], 0, ',', '.') }}</strong></div>
+                    </div>
+                    <p class="text-muted" style="margin:10px 0 0; font-size:12px;">
+                        Anggaran, utang, &amp; goal yang baru dibuat <strong>tidak</strong> mengurangi saldo. Saldo berkurang hanya saat pembayaran/realisasi.
+                    </p>
+                </div>
+            </details>
+        </div>
+    </div>
+    @endisset
 
     {{-- Widget utama PRIBADI --}}
     <div class="row g-3">

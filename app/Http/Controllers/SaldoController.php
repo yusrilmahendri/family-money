@@ -11,7 +11,7 @@ use App\Models\Income;
 use App\Models\Budget;
 use App\Models\Transaction;
 use App\Exports\SaldoExport;
-use App\Service\SaldoService;
+use App\Services\SaldoGlobalService;
 use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
@@ -57,7 +57,7 @@ class SaldoController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(SaldoService $saldoService)
+    public function index(SaldoGlobalService $saldoGlobal)
     {
         $updated_saldo = Saldo::latest()->first(); // ambil transaksi saldo terbaru
 
@@ -74,14 +74,15 @@ class SaldoController extends Controller
             ? (float) Saldo::whereNotNull('income_id')->sum('amount')
             : 0;
 
-        // Ringkasan saldo global yang dinamis (sumber kebenaran tunggal, sama dgn Dashboard & Anggaran)
-        $global = $saldoService->globalSummary();
-        $totalDana        = $global['masuk'];   // semua saldo masuk (awal s/d bulan ini)
-        $totalTransaksi   = $global['transaksi'];
-        $totalBiaya       = $global['biaya'];
-        $sisaSaldoGlobal  = $global['sisa'];     // = masuk - (transaksi + biaya operasional)
+        // Saldo global event-based (sumber kebenaran tunggal, sama dgn Dashboard & Anggaran).
+        $breakdown        = $saldoGlobal->getBreakdown();
+        $totalDana        = $breakdown['income'];        // total uang masuk
+        $totalTransaksi   = $breakdown['transactions'];
+        $totalBiaya       = $breakdown['operational'];
+        $sisaSaldoGlobal  = $breakdown['saldo'];         // income - cashout
         $totalDianggarkan = (float) Budget::sum('amount');
-        $saldoBebas       = $totalDana - $totalDianggarkan - $totalTransaksi;
+        $belumRealisasi   = max(0, $totalDianggarkan - $totalBiaya);
+        $saldoBebas       = $sisaSaldoGlobal - $belumRealisasi;
 
         return view('saldo.index', [
             'Transaksi'          => Saldo::all(),
@@ -94,8 +95,8 @@ class SaldoController extends Controller
             'total_biaya'        => $totalBiaya,
             'saldo_bebas'        => $saldoBebas,
             'sisa_saldo_global'  => $sisaSaldoGlobal,
-            'saldo_keluar'       => $global['keluar'],
-            'saldo_periode_label'=> $global['periode_label'],
+            'saldo_keluar'       => $breakdown['cash_out'],
+            'saldo_breakdown'    => $breakdown,
             'updated_saldo'      => $updated_saldo,
             'title'              => 'Saldo List',
             'categories'         => Category::all(),
