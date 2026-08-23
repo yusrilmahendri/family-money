@@ -2,12 +2,13 @@
 
 namespace App\Console\Commands;
 
-use App\Service\AiService;
+use App\Services\AiService;
 use Illuminate\Console\Command;
 
 class CheckAiCommand extends Command
 {
     protected $signature = 'ai:check';
+
     protected $description = 'Verifikasi konfigurasi AI (provider + key + model)';
 
     public function handle(AiService $ai): int
@@ -37,8 +38,9 @@ class CheckAiCommand extends Command
             $this->warn('-> Tambahkan '.$ai->envKeyName().'=... di file .env di folder ini: '.base_path());
         }
 
-        if (!$ai->isConfigured()) {
+        if (! $ai->isConfigured()) {
             $this->error('-> Key belum terbaca. Cek '.$ai->envKeyName().' di .env, lalu php artisan config:clear.');
+
             return self::FAILURE;
         }
 
@@ -49,9 +51,11 @@ class CheckAiCommand extends Command
         );
         if ($resp['ok']) {
             $this->info('-> Balasan AI : '.trim($resp['text']));
+
             return self::SUCCESS;
         }
         $this->error('-> Error : '.$resp['error']);
+
         return self::FAILURE;
     }
 }

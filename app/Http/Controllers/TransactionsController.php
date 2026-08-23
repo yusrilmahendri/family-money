@@ -2,25 +2,27 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Yajra\DataTables\Facades\DataTables;
+use App\Exports\TransactionExport;
+use App\Http\Controllers\Concerns\AssignsFinanceAccount;
 use App\Models\Budget;
 use App\Models\Category;
-use App\Models\Transaction;
-use App\Models\TransactionItem;
 use App\Models\Saldo;
-use App\Support\FinanceContext;
+use App\Models\Transaction;
 use App\Services\FinanceContextService;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
-use App\Service\BudgetService;
-use Illuminate\Support\Facades\Storage;
-use App\Exports\TransactionExport;
-use Maatwebsite\Excel\Facades\Excel;
+use App\Support\FinanceContext;
+use App\Support\FinanceOwnership;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+use Maatwebsite\Excel\Facades\Excel;
+use Yajra\DataTables\Facades\DataTables;
 
 class TransactionsController extends Controller
 {
+    use AssignsFinanceAccount;
+
     public function data()
     {
         if ($r = FinanceContextService::guardPersonal()) {
@@ -36,24 +38,23 @@ class TransactionsController extends Controller
             })
             // FORMAT RUPIAH
             ->editColumn('amount', function ($row) {
-                return 'Rp ' . number_format($row->amount, 0, ',', '.');
+                return 'Rp '.number_format($row->amount, 0, ',', '.');
             })
 
             // FORMAT DESCRIPTION
-                ->editColumn('description', function ($row) {
-                    return $row->description ?: '-';
-                })
+            ->editColumn('description', function ($row) {
+                return $row->description ?: '-';
+            })
 
             // FORMAT KETERANGAN DETAIL
-                ->editColumn('keterangan_detail', function ($row) {
-                    return $row->keterangan_detail ?: '-';
-                })
+            ->editColumn('keterangan_detail', function ($row) {
+                return $row->keterangan_detail ?: '-';
+            })
 
             // FORMAT TANGGAL KE d M Y
             ->editColumn('transaction_date', function ($row) {
                 return \Carbon\Carbon::parse($row->transaction_date)->format('d M Y');
             })
-
 
             ->addColumn('action', 'transactions.action')
             ->addIndexColumn()
@@ -61,7 +62,6 @@ class TransactionsController extends Controller
             ->rawColumns(['action', 'name_items']) // 🔥 WAJIB AGAR RENDER HTML
             ->toJson();
     }
-
 
     /**
      * Display a listing of the resource.
@@ -95,6 +95,7 @@ class TransactionsController extends Controller
             'contextLabel' => FinanceContext::label($context),
         ]);
     }
+
     /**
      * Show the form for creating a new resource.
      */
@@ -129,6 +130,7 @@ class TransactionsController extends Controller
             'category_id' => ['nullable', 'exists:categories,id'],
             'keterangan_detail' => ['nullable', 'string'],
             'nota' => ['nullable', 'file', 'image', 'max:4096'],
+            ...$this->legacyAccountRules(FinanceContext::PRIBADI),
         ]);
 
         $total = (float) preg_replace('/[^0-9]/', '', $validated['total']);
@@ -145,9 +147,13 @@ class TransactionsController extends Controller
             $notaFile = $request->file('nota')->store('nota', 'public');
         }
 
+        $entity = FinanceOwnership::defaultEntityForContext(FinanceContext::PRIBADI);
+
         Transaction::create([
             'category_id' => $validated['category_id'] ?? null,
             'context' => FinanceContext::PRIBADI,
+            'finance_entity_id' => $entity?->id,
+            'finance_account_id' => $entity ? $this->resolvedAccountId($validated, $entity) : null,
             'amount' => $total,
             'transaction_date' => $validated['date'],
             'description' => $validated['description'] ?? null,
@@ -325,7 +331,7 @@ class TransactionsController extends Controller
         }
         $context = FinanceContext::PRIBADI;
 
-        return Excel::download(new TransactionExport($context), 'data-transaksi-' . strtolower($context) . '-' . date('Y-m-d') . '.xlsx');
+        return Excel::download(new TransactionExport($context), 'data-transaksi-'.strtolower($context).'-'.date('Y-m-d').'.xlsx');
     }
 
     /**
@@ -350,7 +356,7 @@ class TransactionsController extends Controller
             'contextLabel' => FinanceContext::label($context),
         ]);
 
-        return $pdf->download('data-transaksi-' . strtolower($context) . '-' . date('Y-m-d') . '.pdf');
+        return $pdf->download('data-transaksi-'.strtolower($context).'-'.date('Y-m-d').'.pdf');
     }
 
     /**

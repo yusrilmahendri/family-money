@@ -2,8 +2,10 @@
 
 namespace Database\Factories;
 
-use Illuminate\Database\Eloquent\Factories\Factory;
 use App\Models\Category;
+use App\Models\FinanceEntity;
+use App\Support\FinanceContext;
+use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Transaction>
@@ -11,17 +13,17 @@ use App\Models\Category;
 class TransactionFactory extends Factory
 {
     /**
-     * Define the model's default state.
-     *
      * @return array<string, mixed>
      */
     public function definition(): array
     {
         return [
-            'category_id'       => Category::inRandomOrder()->first()->id ?? Category::factory(),
-            'amount'            => $this->faker->randomFloat(2, 50000, 1000000),
-            'transaction_date'  => $this->faker->date(),
-            'description'       => $this->faker->sentence(),
+            'finance_entity_id' => FinanceEntity::factory()->family(),
+            'category_id' => Category::factory(),
+            'context' => FinanceContext::PRIBADI,
+            'amount' => $this->faker->randomFloat(2, 50000, 1000000),
+            'transaction_date' => $this->faker->date(),
+            'description' => $this->faker->sentence(),
         ];
     }
 }

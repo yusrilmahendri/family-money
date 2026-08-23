@@ -1,7 +1,7 @@
 <?php
 
 test('the application returns a successful response', function () {
-    $response = $this->get('/');
+    $this->get('/')->assertOk()->assertSee('Keuangan Kita');
 
-    $response->assertStatus(200);
+    $this->get('/apps')->assertRedirect(route('home'));
 });

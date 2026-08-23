@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AssignsFinanceAccount;
 use App\Models\Debt;
 use App\Models\DebtPayment;
 use App\Services\FinanceContextService;
+use App\Support\FinanceContext;
 use Illuminate\Http\Request;
 
 class DebtController extends Controller
 {
+    use AssignsFinanceAccount;
+
     public function index()
     {
         if ($r = FinanceContextService::guardPersonal()) {
@@ -27,6 +31,7 @@ class DebtController extends Controller
         if ($r = FinanceContextService::guardPersonal()) {
             return $r;
         }
+
         return view('debts.create', [
             'title' => 'Catat utang / cicilan',
         ]);
@@ -56,6 +61,7 @@ class DebtController extends Controller
             : '0';
 
         Debt::create([
+            'finance_entity_id' => \App\Support\FinanceOwnership::defaultEntityIdForContext(\App\Support\FinanceContext::PRIBADI),
             'title' => $validated['title'],
             'principal_total' => $principal,
             'remaining_balance' => $remaining,
@@ -86,6 +92,7 @@ class DebtController extends Controller
         if ($r = FinanceContextService::guardPersonal()) {
             return $r;
         }
+
         return view('debts.edit', [
             'title' => 'Ubah utang',
             'debt' => $debt,
@@ -141,12 +148,15 @@ class DebtController extends Controller
             'amount' => ['required', 'string'],
             'paid_on' => ['required', 'date'],
             'notes' => ['nullable', 'string', 'max:255'],
+            ...$this->legacyAccountRules(FinanceContext::PRIBADI),
         ]);
 
         $amount = (float) $this->parseRupiah($validated['amount']);
+        $entity = $debt->financeEntity;
 
         DebtPayment::create([
             'debt_id' => $debt->id,
+            'finance_account_id' => $entity ? $this->resolvedAccountId($validated, $entity) : null,
             'amount' => $amount,
             'paid_on' => $validated['paid_on'],
             'notes' => $validated['notes'] ?? null,

@@ -6,10 +6,9 @@ use App\Support\FinanceContext;
 use Illuminate\Http\RedirectResponse;
 
 /**
- * Service konteks keuangan aktif (PRIBADI / USAHA_KEBUN).
+ * Deprecated session-context guards for leftover /apps controllers.
  *
- * Bekerja di atas session via App\Support\FinanceContext.
- * Menyediakan helper konteks + guard akses fitur tanpa middleware.
+ * Product ownership is finance_entity_id. Do not call this from entity/admin.
  */
 class FinanceContextService
 {

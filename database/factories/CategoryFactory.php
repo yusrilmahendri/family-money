@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\FinanceEntity;
+use App\Support\FinanceContext;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -17,7 +19,9 @@ class CategoryFactory extends Factory
     public function definition(): array
     {
         return [
-             'name' => 'income',
+            'name' => fake()->unique()->words(2, true),
+            'context' => FinanceContext::PRIBADI,
+            'finance_entity_id' => FinanceEntity::factory()->family(),
         ];
     }
 }

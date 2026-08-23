@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToFinanceEntity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Debt extends Model
 {
+    use BelongsToFinanceEntity;
+
     protected $fillable = [
+        'finance_entity_id',
         'title',
         'principal_total',
         'remaining_balance',

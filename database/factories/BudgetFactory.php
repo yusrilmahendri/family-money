@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Budget;
 use App\Models\Category;
+use App\Models\FinanceEntity;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -21,6 +22,7 @@ class BudgetFactory extends Factory
     public function definition(): array
     {
         return [
+            'finance_entity_id' => FinanceEntity::factory()->business(),
             'category_id' => Category::query()->inRandomOrder()->value('id') ?? Category::factory(),
             'amount' => $this->faker->randomFloat(2, 1000000, 5000000),
             'amount_saldo' => 0,

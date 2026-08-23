@@ -134,6 +134,7 @@ class BudgetController extends Controller
         if ($r = FinanceContextService::guardFarm()) {
             return $r;
         }
+
         return view('budgets.create', [
             'title' => 'Tambah Anggaran',
             'categories' => Category::forContext(FinanceContext::USAHA_KEBUN)->orderBy('name')->get(),
@@ -161,6 +162,7 @@ class BudgetController extends Controller
         // Saldo baru berkurang saat biaya operasional benar-benar dicatat (realisasi).
         Budget::create([
             'category_id' => $validated['category_id'],
+            'finance_entity_id' => \App\Support\FinanceOwnership::defaultEntityIdForContext(\App\Support\FinanceContext::USAHA_KEBUN),
             'amount' => $amount,
             'amount_saldo' => 0,
             'periode' => $validated['periode'],
@@ -206,6 +208,7 @@ class BudgetController extends Controller
         if ($r = FinanceContextService::guardFarm()) {
             return $r;
         }
+
         return view('budgets.edit', [
             'title' => 'Ubah Anggaran',
             'budget' => $budget,

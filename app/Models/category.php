@@ -2,14 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToFinanceEntity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Category extends Model
 {
-    use HasFactory;
+    use BelongsToFinanceEntity, HasFactory;
 
-    protected $fillable = ['id', 'name', 'context'];
+    protected $fillable = ['id', 'name', 'context', 'finance_entity_id'];
     protected $table = 'categories';
 
     public function saldos()

@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AssignsFinanceAccount;
 use App\Models\Category;
+use App\Models\FinanceAccount;
 use App\Models\RecurringTransaction;
 use App\Models\Transaction;
-use App\Service\RecurringTransactionRunner;
+use App\Services\RecurringTransactionRunner;
+use App\Support\FinanceContext;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -13,6 +16,8 @@ use Yajra\DataTables\Facades\DataTables;
 
 class RecurringTransactionController extends Controller
 {
+    use AssignsFinanceAccount;
+
     public function data()
     {
         $q = RecurringTransaction::query()->with('category')->orderBy('next_due', 'asc');
@@ -115,7 +120,23 @@ class RecurringTransactionController extends Controller
      */
     public function postNow(RecurringTransaction $recurring)
     {
+        $account = app(RecurringTransactionRunner::class)->accountForPosting($recurring);
+
+        if (! $account instanceof FinanceAccount) {
+            return redirect()
+                ->route('recurring-transactions.index')
+                ->with('danger', 'Recurring tidak diposting: kas/rekening tidak aktif atau tidak milik entity ini.');
+        }
+
+        $entity = $recurring->financeEntity;
+        $context = $entity
+            ? \App\Support\FinanceOwnership::contextFor($entity)
+            : ($recurring->category?->context ?? \App\Support\FinanceContext::PRIBADI);
+
         Transaction::create([
+            'finance_entity_id' => $recurring->finance_entity_id,
+            'finance_account_id' => $account->id,
+            'context' => $context,
             'category_id' => $recurring->category_id,
             'amount' => $recurring->amount,
             'transaction_date' => Carbon::today(),
@@ -144,6 +165,7 @@ class RecurringTransactionController extends Controller
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'active' => ['nullable'],
             'description' => ['nullable', 'string', 'max:255'],
+            ...$this->legacyAccountRules(FinanceContext::PRIBADI),
         ]);
 
         $startDate = Carbon::parse($validated['start_date']);
@@ -159,10 +181,20 @@ class RecurringTransactionController extends Controller
         ]);
         $nextDue = $tmp->calculateNextDue($startDate);
 
+        $categoryId = $validated['category_id'] ?? null;
+        $entityId = \App\Support\FinanceOwnership::defaultEntityIdForContext(\App\Support\FinanceContext::PRIBADI);
+        if ($categoryId) {
+            $entityId = \App\Models\Category::query()->where('id', $categoryId)->value('finance_entity_id') ?: $entityId;
+        }
+
+        $entity = $entityId ? \App\Models\FinanceEntity::query()->find($entityId) : null;
+
         return [
+            'finance_entity_id' => $entityId,
+            'finance_account_id' => $entity ? $this->resolvedAccountId($validated, $entity) : null,
             'name' => $validated['name'],
             'amount' => $amount,
-            'category_id' => $validated['category_id'] ?? null,
+            'category_id' => $categoryId,
             'frequency' => $validated['frequency'],
             'day_of_month' => $validated['day_of_month'] ?? null,
             'day_of_week' => $validated['day_of_week'] ?? null,
@@ -178,7 +210,7 @@ class RecurringTransactionController extends Controller
     {
         return match ($r->frequency) {
             'daily' => 'Setiap hari',
-            'weekly' => 'Setiap '.['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][$r->day_of_week ?? 0],
+            'weekly' => 'Setiap '.['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][$r->day_of_week ?? 0],
             'monthly' => 'Setiap bulan tgl '.($r->day_of_month ?? '?'),
             'yearly' => 'Setahun sekali',
             default => $r->frequency,

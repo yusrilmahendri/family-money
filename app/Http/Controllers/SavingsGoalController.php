@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AssignsFinanceAccount;
 use App\Models\GoalContribution;
 use App\Models\SavingsGoal;
 use App\Services\FinanceContextService;
+use App\Support\FinanceContext;
 use Illuminate\Http\Request;
 
 class SavingsGoalController extends Controller
 {
+    use AssignsFinanceAccount;
+
     public function index()
     {
         if ($r = FinanceContextService::guardPersonal()) {
@@ -27,6 +31,7 @@ class SavingsGoalController extends Controller
         if ($r = FinanceContextService::guardPersonal()) {
             return $r;
         }
+
         return view('savings_goals.create', [
             'title' => 'Goal tabungan baru',
         ]);
@@ -45,6 +50,7 @@ class SavingsGoalController extends Controller
         ]);
 
         SavingsGoal::create([
+            'finance_entity_id' => \App\Support\FinanceOwnership::defaultEntityIdForContext(\App\Support\FinanceContext::PRIBADI),
             'title' => $validated['title'],
             'target_amount' => $this->parseRupiah($validated['target_amount']),
             'deadline' => $validated['deadline'] ?? null,
@@ -77,6 +83,7 @@ class SavingsGoalController extends Controller
         if ($r = FinanceContextService::guardPersonal()) {
             return $r;
         }
+
         return view('savings_goals.edit', [
             'title' => 'Ubah goal',
             'goal' => $savings_goal,
@@ -123,10 +130,14 @@ class SavingsGoalController extends Controller
         $validated = $request->validate([
             'amount' => ['required', 'string'],
             'contributed_on' => ['required', 'date'],
+            ...$this->legacyAccountRules(FinanceContext::PRIBADI),
         ]);
+
+        $entity = $savings_goal->financeEntity;
 
         GoalContribution::create([
             'savings_goal_id' => $savings_goal->id,
+            'finance_account_id' => $entity ? $this->resolvedAccountId($validated, $entity) : null,
             'amount' => $this->parseRupiah($validated['amount']),
             'contributed_on' => $validated['contributed_on'],
         ]);

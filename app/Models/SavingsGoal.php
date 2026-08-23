@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToFinanceEntity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SavingsGoal extends Model
 {
+    use BelongsToFinanceEntity;
+
     protected $fillable = [
+        'finance_entity_id',
         'title',
         'target_amount',
         'deadline',

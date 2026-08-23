@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToFinanceAccount;
+use App\Models\Concerns\BelongsToFinanceEntity;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,9 +11,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RecurringTransaction extends Model
 {
-    use HasFactory;
+    use BelongsToFinanceAccount, BelongsToFinanceEntity, HasFactory;
 
     protected $fillable = [
+        'finance_entity_id',
+        'finance_account_id',
         'category_id',
         'name',
         'amount',

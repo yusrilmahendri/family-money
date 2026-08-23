@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AssignsFinanceAccount;
 use App\Models\Budget;
 use App\Models\BudgetActivity;
 use App\Models\Category;
@@ -13,6 +14,8 @@ use Yajra\DataTables\Facades\DataTables;
 
 class OperationalExpenseController extends Controller
 {
+    use AssignsFinanceAccount;
+
     /**
      * DataTables JSON: semua biaya operasional (alias BudgetActivity).
      */
@@ -29,10 +32,11 @@ class OperationalExpenseController extends Controller
             ->addColumn('category', fn (BudgetActivity $a) => $a->budget?->category?->name ?? '—')
             ->addColumn('budget', function (BudgetActivity $a) {
                 $b = $a->budget;
-                if (!$b) {
+                if (! $b) {
                     return '<span class="text-muted">— Anggaran terhapus —</span>';
                 }
                 $periode = optional($b->periode)->translatedFormat('M Y') ?? '-';
+
                 return e($b->description ?: 'Anggaran').' <small class="text-muted">('.$periode.')</small>';
             })
             ->editColumn('name', fn (BudgetActivity $a) => e($a->name).($a->description ? '<br><small class="text-muted">'.e($a->description).'</small>' : ''))
@@ -76,6 +80,7 @@ class OperationalExpenseController extends Controller
         if ($r = FinanceContextService::guardFarm()) {
             return $r;
         }
+
         return view('operational.create', [
             'title' => 'Tambah Biaya Operasional',
             'categories' => Category::forContext(FinanceContext::USAHA_KEBUN)->orderBy('name')->get(),
@@ -94,6 +99,7 @@ class OperationalExpenseController extends Controller
             'amount' => ['required', 'string'],
             'activity_date' => ['required', 'date'],
             'description' => ['nullable', 'string', 'max:255'],
+            ...$this->legacyAccountRules(FinanceContext::USAHA_KEBUN),
         ], [
             'budget_id.required' => 'Pilih anggaran yang akan dikurangi.',
             'name.required' => 'Nama biaya wajib diisi (mis. Upah, Gaji, Pupuk).',
@@ -118,8 +124,11 @@ class OperationalExpenseController extends Controller
             ]);
         }
 
+        $entity = $budget->financeEntity;
+
         BudgetActivity::create([
             'budget_id' => $budget->id,
+            'finance_account_id' => $entity ? $this->resolvedAccountId($validated, $entity) : null,
             'name' => $validated['name'],
             'amount' => $amount,
             'activity_date' => $validated['activity_date'],
@@ -135,6 +144,7 @@ class OperationalExpenseController extends Controller
         if ($r = FinanceContextService::guardFarm()) {
             return $r;
         }
+
         return view('operational.edit', [
             'title' => 'Ubah Biaya Operasional',
             'activity' => $operational,

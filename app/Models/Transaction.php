@@ -2,26 +2,29 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToFinanceAccount;
+use App\Models\Concerns\BelongsToFinanceEntity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Category;
-use App\Models\TransactionItem;
 
 class Transaction extends Model
 {
     /** @use HasFactory<\Database\Factories\TransactionFactory> */
-    use HasFactory;
+    use BelongsToFinanceAccount, BelongsToFinanceEntity, HasFactory;
 
-    protected $fillable = ['category_id', 'context', 'amount', 'description', 'transaction_date', 'nota', 'keterangan_detail'];
+    protected $fillable = ['finance_entity_id', 'finance_account_id', 'category_id', 'context', 'amount', 'description', 'transaction_date', 'nota', 'keterangan_detail'];
+
     protected $casts = [
-    'transaction_date' => 'date',
-];
+        'transaction_date' => 'date',
+    ];
 
-    public function category(){
+    public function category()
+    {
         return $this->belongsTo(Category::class);
     }
 
-    public function items(){
+    public function items()
+    {
         return $this->hasMany(TransactionItem::class, 'transaction_id');
     }
 

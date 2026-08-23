@@ -2,18 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AssignsFinanceAccount;
 use App\Models\Category;
 use App\Models\Income;
 use App\Models\Saldo;
-use App\Support\FinanceContext;
 use App\Services\FinanceContextService;
+use App\Support\FinanceContext;
+use App\Support\FinanceOwnership;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Yajra\DataTables\Facades\DataTables;
 
+/**
+ * Legacy /apps Income. Still syncs a saldos row for the old saldo list.
+ * Private entity Income must not use this controller.
+ */
 class IncomeController extends Controller
 {
+    use AssignsFinanceAccount;
+
     public function data()
     {
         if ($r = FinanceContextService::guardFarm()) {
@@ -94,6 +102,7 @@ class IncomeController extends Controller
             'income_date' => ['required', 'date'],
             'category_id' => ['required', 'exists:categories,id'],
             'description' => ['nullable', 'string', 'max:255'],
+            ...$this->legacyAccountRules(FinanceContext::USAHA_KEBUN),
         ], [
             'source.required' => 'Sumber pemasukan wajib diisi.',
             'amount.required' => 'Jumlah pemasukan wajib diisi.',
@@ -104,16 +113,19 @@ class IncomeController extends Controller
         $amount = (float) $this->parseRupiah($validated['amount']);
 
         DB::transaction(function () use ($validated, $amount) {
+            $entity = FinanceOwnership::defaultEntityForContext(FinanceContext::USAHA_KEBUN);
             $income = Income::create([
                 'category_id' => $validated['category_id'],
                 'context' => FinanceContext::USAHA_KEBUN,
+                'finance_entity_id' => $entity?->id,
+                'finance_account_id' => $entity ? $this->resolvedAccountId($validated, $entity) : null,
                 'source' => $validated['source'],
                 'amount' => $amount,
                 'income_date' => $validated['income_date'],
                 'description' => $validated['description'] ?? null,
             ]);
 
-            $this->syncSaldoFromIncome($income);
+            $this->syncLegacySaldoFromIncome($income);
         });
 
         return redirect()->route('incomes.index')->with('success', 'Pemasukan dicatat & saldo otomatis bertambah.');
@@ -158,7 +170,7 @@ class IncomeController extends Controller
                 'description' => $validated['description'] ?? null,
             ]);
 
-            $this->syncSaldoFromIncome($income);
+            $this->syncLegacySaldoFromIncome($income);
         });
 
         return redirect()->route('incomes.index')->with('info', 'Pemasukan diperbarui & saldo otomatis disesuaikan.');
@@ -180,11 +192,12 @@ class IncomeController extends Controller
     }
 
     /**
-     * Pastikan ada satu record Saldo yang mencerminkan Pemasukan ini.
-     * - Kalau belum ada → buat baru.
-     * - Kalau sudah ada → update jumlah/kategori/periode.
+     * Legacy /apps compatibility only. Do not call from entity Income.
+     *
+     * SaldoGlobalService already counts Income::sum() and ignores saldos
+     * that have income_id, so this row is for the legacy saldo list UI.
      */
-    private function syncSaldoFromIncome(Income $income): void
+    private function syncLegacySaldoFromIncome(Income $income): void
     {
         if (! Schema::hasColumn('saldos', 'income_id')) {
             return;

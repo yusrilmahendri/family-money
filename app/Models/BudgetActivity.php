@@ -2,16 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToFinanceAccount;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BudgetActivity extends Model
 {
-    use HasFactory;
+    use BelongsToFinanceAccount, HasFactory;
 
     protected $fillable = [
         'budget_id',
+        'finance_account_id',
         'name',
         'amount',
         'activity_date',

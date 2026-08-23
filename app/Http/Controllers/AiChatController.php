@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Service\AiService;
+use App\Services\AiService;
 use App\Services\Insight\InsightDataService;
 use App\Support\FinanceContext;
 use Illuminate\Http\JsonResponse;
@@ -27,7 +27,7 @@ class AiChatController extends Controller
         $ctx = $this->data->getContext();
         $ctxLabel = $this->data->getContextLabel();
 
-        if (!$this->ai->isConfigured()) {
+        if (! $this->ai->isConfigured()) {
             return response()->json([
                 'ok' => false,
                 'context' => $ctx,
@@ -50,8 +50,8 @@ class AiChatController extends Controller
         $istilah = $ctx === FinanceContext::USAHA_KEBUN
             ? "- \"Pemasukan\" = hasil/penjualan usaha kebun.\n".
               "- \"Biaya Operasional\" = pengeluaran usaha (gaji, upah, pupuk, dll.).\n".
-              "- \"Laba/Rugi\" = Pemasukan - Biaya Operasional."
-            : "- \"Pengeluaran\" = transaksi/kebutuhan pribadi (mis. BPJS, belanja).";
+              '- "Laba/Rugi" = Pemasukan - Biaya Operasional.'
+            : '- "Pengeluaran" = transaksi/kebutuhan pribadi (mis. BPJS, belanja).';
 
         $system = <<<SYS
 Anda adalah "Asisten Keuangan" untuk aplikasi family-keuangan.
@@ -78,7 +78,7 @@ SYS;
 
         $resp = $this->ai->chat($messages, ['temperature' => 0.3, 'max_tokens' => 600]);
 
-        if (!$resp['ok']) {
+        if (! $resp['ok']) {
             return response()->json([
                 'ok' => false,
                 'context' => $ctx,

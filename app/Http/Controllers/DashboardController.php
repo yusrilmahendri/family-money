@@ -8,12 +8,10 @@ use App\Models\BudgetActivity;
 use App\Models\Category;
 use App\Models\Debt;
 use App\Models\Income;
-use App\Models\RecurringTransaction;
 use App\Models\Saldo;
 use App\Models\SavingsGoal;
 use App\Models\Transaction;
-use App\Models\TransactionItem;
-use App\Service\RecurringTransactionRunner;
+use App\Services\RecurringTransactionRunner;
 use App\Services\SaldoGlobalService;
 use App\Support\FinanceContext;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -95,6 +93,7 @@ class DashboardController extends Controller
             ? SavingsGoal::orderBy('title')->get()->map(function (SavingsGoal $g) {
                 $saved = (float) $g->savedTotal();
                 $target = (float) $g->target_amount;
+
                 return [
                     'title' => $g->title,
                     'target' => $target,

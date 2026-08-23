@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
-use App\Support\FinanceContext;
 use App\Services\FinanceContextService;
+use App\Support\FinanceContext;
 use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -67,6 +67,7 @@ class CategoryController extends Controller
             ]);
 
             $validatedData['context'] = $context;
+            $validatedData['finance_entity_id'] = \App\Support\FinanceOwnership::defaultEntityIdForContext($context);
             $category = Category::create($validatedData);
 
             if ($request->ajax()) {
@@ -99,6 +100,7 @@ class CategoryController extends Controller
         if ($r = FinanceContextService::guardFarm()) {
             return $r;
         }
+
         return view('category.edit', [
             'title' => 'Ubah Jenis Usaha',
             'category' => $category,

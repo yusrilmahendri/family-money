@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Service\AiService;
+use App\Services\AiService;
 use App\Services\Insight\InsightDataService;
 use App\Support\FinanceContext;
 use Illuminate\Http\JsonResponse;
@@ -100,9 +100,9 @@ class InsightController extends Controller
                 : 'KEUANGAN PRIBADI (pengeluaran & kebutuhan pribadi)';
 
             $system = "Anda adalah analis keuangan ramah. Anda sedang menganalisis {$fokus}. ".
-                "PENTING: analisis HANYA berdasarkan data konteks ini; JANGAN menyebut atau mencampur konteks lain ".
-                "(jika ini PRIBADI jangan bahas usaha kebun, dan sebaliknya). ".
-                "Tulis dalam BAHASA INDONESIA, paragraf pendek (3-5 paragraf), bahasa sederhana, format Rupiah (Rp 1.250.000). ".
+                'PENTING: analisis HANYA berdasarkan data konteks ini; JANGAN menyebut atau mencampur konteks lain '.
+                '(jika ini PRIBADI jangan bahas usaha kebun, dan sebaliknya). '.
+                'Tulis dalam BAHASA INDONESIA, paragraf pendek (3-5 paragraf), bahasa sederhana, format Rupiah (Rp 1.250.000). '.
                 "Jangan mengarang angka. Akhiri dengan 2-3 saran konkret yang relevan dengan konteks {$ctxLabel}.";
 
             $user = <<<USR
@@ -127,6 +127,7 @@ USR;
 
         if (! $summary['ok']) {
             Cache::forget($cacheKey);
+
             return response()->json(['ok' => false, 'error' => $summary['error'] ?? 'AI gagal merespons.']);
         }
 
@@ -186,6 +187,7 @@ USR;
     private function availableYears(): array
     {
         $current = (int) now()->year;
+
         return [$current - 1, $current, $current + 1];
     }
 }
