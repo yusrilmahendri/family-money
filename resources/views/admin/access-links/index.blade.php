@@ -38,7 +38,7 @@
                     <th>Expires At</th>
                     <th>Last Used At</th>
                     <th>Created At</th>
-                    <th style="width: 280px;">Actions</th>
+                    <th style="width: 340px;">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -55,7 +55,7 @@
                         <td>{{ $link->expires_at?->format('Y-m-d H:i') ?: 'Tidak expired' }}</td>
                         <td>{{ $link->last_used_at?->format('Y-m-d H:i') ?: '—' }}</td>
                         <td>{{ $link->created_at?->format('Y-m-d H:i') }}</td>
-                        <td>
+                        <td class="admin-actions">
                             <a href="{{ route('admin.finance-entities.access-links.edit', [$entity, $link]) }}" class="btn btn-default btn-xs">Edit</a>
                             @if($link->is_active)
                                 <form action="{{ route('admin.finance-entities.access-links.revoke', [$entity, $link]) }}" method="POST" style="display:inline;">
@@ -72,6 +72,16 @@
                                 @csrf
                                 <button type="submit" class="btn btn-primary btn-xs">Regenerate</button>
                             </form>
+                            <button
+                                type="button"
+                                class="btn btn-danger btn-xs js-access-link-delete"
+                                data-toggle="modal"
+                                data-target="#access-link-delete-modal"
+                                data-action="{{ route('admin.finance-entities.access-links.destroy', [$entity, $link]) }}"
+                                data-label="{{ $link->label ?: 'tanpa label' }}"
+                            >
+                                Hapus
+                            </button>
                         </td>
                     </tr>
                 @empty
@@ -84,4 +94,42 @@
     </div>
 
     <a href="{{ route('admin.finance-entities.index') }}" class="btn btn-default">Kembali</a>
+
+    <div class="modal fade" id="access-link-delete-modal" tabindex="-1" role="dialog" aria-labelledby="access-link-delete-title">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form id="access-link-delete-form" method="POST" action="">
+                    @csrf
+                    @method('DELETE')
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Tutup"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title" id="access-link-delete-title">Hapus Access Link?</h4>
+                    </div>
+                    <div class="modal-body">
+                        <p>Link ini akan dihapus permanen dan tidak dapat digunakan lagi.</p>
+                        <p class="text-muted" id="access-link-delete-label"></p>
+                        <p class="text-danger"><strong>Tindakan ini tidak dapat dibatalkan.</strong></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-danger">Hapus Permanen</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
+
+@push('scripts')
+<script>
+    $(function () {
+        var $form = $('#access-link-delete-form');
+        var $label = $('#access-link-delete-label');
+
+        $('.js-access-link-delete').on('click', function () {
+            $form.attr('action', $(this).data('action'));
+            $label.text('Label: ' + ($(this).data('label') || 'tanpa label'));
+        });
+    });
+</script>
+@endpush

@@ -16,6 +16,7 @@ enum AuditAction: string
     case PAYMENT = 'PAYMENT';
     case TRANSFER = 'TRANSFER';
     case AI_CHAT_REQUESTED = 'AI_CHAT_REQUESTED';
+    case ACCESS_LINK_DELETED = 'ACCESS_LINK_DELETED';
 
     /**
      * @return list<string>

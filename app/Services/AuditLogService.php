@@ -133,7 +133,7 @@ class AuditLogService
         } elseif ($action === AuditAction::AI_CHAT_REQUESTED) {
             $oldValues = null;
             $newValues = $this->sanitize($newValues ?? []);
-        } elseif ($action === AuditAction::DELETE || $action === AuditAction::FINANCE_ENTITY_DELETED) {
+        } elseif ($action === AuditAction::DELETE || $action === AuditAction::FINANCE_ENTITY_DELETED || $action === AuditAction::ACCESS_LINK_DELETED) {
             $oldValues = $this->sanitize($oldValues ?? $this->snapshot($auditable));
             $newValues = null;
         } elseif ($oldValues !== null || $newValues !== null) {

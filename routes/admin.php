@@ -43,6 +43,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('finance-entities/{financeEntity}/access-links/{accessToken}/revoke', [FinanceEntityAccessTokenController::class, 'revoke'])->name('finance-entities.access-links.revoke');
         Route::post('finance-entities/{financeEntity}/access-links/{accessToken}/activate', [FinanceEntityAccessTokenController::class, 'activate'])->name('finance-entities.access-links.activate');
         Route::post('finance-entities/{financeEntity}/access-links/{accessToken}/regenerate', [FinanceEntityAccessTokenController::class, 'regenerate'])->name('finance-entities.access-links.regenerate');
+        Route::delete('finance-entities/{financeEntity}/access-links/{accessToken}', [FinanceEntityAccessTokenController::class, 'destroy'])
+            ->scopeBindings()
+            ->name('finance-entities.access-links.destroy');
 
         Route::prefix('finance-entities/{financeEntity}/accounts')->name('finance-entities.accounts.')->scopeBindings()->group(function () {
             Route::get('/', [FinanceAccountController::class, 'index'])->name('index');

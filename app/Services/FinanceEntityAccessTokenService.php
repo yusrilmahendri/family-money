@@ -115,4 +115,22 @@ class FinanceEntityAccessTokenService
     {
         $token->forceFill(['last_used_at' => now()])->save();
     }
+
+    public function delete(FinanceEntityAccessToken $token): void
+    {
+        $entity = $token->financeEntity;
+        $old = array_merge($this->audit->snapshot($token), [
+            'finance_entity_public_id' => $entity?->public_id,
+            'access_token_id' => (int) $token->id,
+        ]);
+
+        $this->audit->record(
+            $token,
+            AuditAction::ACCESS_LINK_DELETED,
+            $entity,
+            $old,
+        );
+
+        $token->delete();
+    }
 }

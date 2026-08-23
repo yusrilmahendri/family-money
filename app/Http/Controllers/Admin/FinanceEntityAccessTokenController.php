@@ -107,6 +107,17 @@ class FinanceEntityAccessTokenController extends Controller
         ]);
     }
 
+    public function destroy(FinanceEntity $financeEntity, FinanceEntityAccessToken $accessToken): RedirectResponse
+    {
+        $this->ensureBelongsToEntity($financeEntity, $accessToken);
+
+        $this->tokens->delete($accessToken);
+
+        return redirect()
+            ->route('admin.finance-entities.access-links.index', $financeEntity)
+            ->with('success', 'Access link dihapus permanen.');
+    }
+
     private function ensureBelongsToEntity(FinanceEntity $entity, FinanceEntityAccessToken $token): void
     {
         abort_unless((int) $token->finance_entity_id === (int) $entity->id, 404);
