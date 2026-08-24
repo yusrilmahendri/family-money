@@ -18,6 +18,10 @@ use Illuminate\Support\Facades\Log;
  */
 class AiService
 {
+    public const INSIGHT_MAX_OUTPUT_TOKENS = 1600;
+
+    public const MAX_OUTPUT_TOKEN_CAP = 8192;
+
     public function provider(): string
     {
         $fromConfig = config('services.ai.provider');
@@ -67,7 +71,17 @@ class AiService
      *
      * @param  array  $messages  array of ['role' => system|user|assistant, 'content' => string]
      * @param  array  $options  override: model, temperature, max_tokens
-     * @return array{ok: bool, text?: string, error?: string, raw?: array}
+     * @return array{
+     *     ok: bool,
+     *     text?: string,
+     *     error?: string,
+     *     raw?: array,
+     *     status?: int,
+     *     model?: string,
+     *     finish_reason?: string,
+     *     truncated?: bool,
+     *     usage?: array<string, mixed>|null
+     * }
      */
     public function chat(array $messages, array $options = []): array
     {
@@ -122,15 +136,16 @@ class AiService
         return ['ok' => false, 'error' => $lastError];
     }
 
-    private function chatGeminiOnce(array $cfg, string $model, array $messages, array $options): array
+    private function chatGeminiOnce(array $cfg, string $model, array $messages, array $options, bool $retriedMaxTokens = false): array
     {
         [$systemText, $contents] = $this->messagesToGemini($messages);
+        $maxOutputTokens = isset($options['max_tokens']) ? (int) $options['max_tokens'] : 2048;
 
         $payload = [
             'contents' => $contents,
             'generationConfig' => array_filter([
                 'temperature' => $options['temperature'] ?? 0.3,
-                'maxOutputTokens' => isset($options['max_tokens']) ? (int) $options['max_tokens'] : 2048,
+                'maxOutputTokens' => $maxOutputTokens,
             ]),
         ];
 
@@ -140,7 +155,7 @@ class AiService
             ];
         }
 
-        $url = rtrim($cfg['base_url'], '/').'/models/'.$model.':generateContent';
+        $url = rtrim((string) $cfg['base_url'], '/').'/models/'.$model.':generateContent';
 
         try {
             $resp = Http::withQueryParameters(['key' => $cfg['key']])
@@ -149,48 +164,147 @@ class AiService
                 ->asJson()
                 ->post($url, $payload);
 
+            $status = $resp->status();
+
             if (! $resp->successful()) {
-                Log::warning('Gemini error', ['model' => $model, 'status' => $resp->status(), 'body' => $resp->body()]);
-                $msg = $resp->json('error.message') ?? $resp->body();
-                $status = $resp->status();
+                $msg = $resp->json('error.message') ?? '';
+                $this->logProvider('warning', [
+                    'provider' => 'gemini',
+                    'model' => $model,
+                    'status' => $status,
+                    'finish_reason' => null,
+                    'truncated' => false,
+                ]);
+
                 if ($status === 429) {
-                    return ['ok' => false, 'status' => 429, 'error' => 'Kuota habis untuk model '.$model.'. Mencoba model lain...'];
+                    return ['ok' => false, 'status' => 429, 'model' => $model, 'truncated' => false, 'error' => 'Kuota habis untuk model '.$model.'. Mencoba model lain...'];
                 }
                 if ($status === 400 && str_contains(strtolower((string) $msg), 'api key')) {
-                    return ['ok' => false, 'status' => 400, 'error' => 'API key Gemini tidak valid. Salin ulang dari aistudio.google.com/apikey (tombol Copy key) ke GEMINI_API_KEY di .env.'];
+                    return ['ok' => false, 'status' => 400, 'model' => $model, 'truncated' => false, 'error' => 'API key Gemini tidak valid. Salin ulang dari aistudio.google.com/apikey (tombol Copy key) ke GEMINI_API_KEY di .env.'];
                 }
                 if ($status === 404) {
-                    return ['ok' => false, 'status' => 404, 'error' => 'Model '.$model.' tidak tersedia.'];
+                    return ['ok' => false, 'status' => 404, 'model' => $model, 'truncated' => false, 'error' => 'Model '.$model.' tidak tersedia.'];
                 }
                 if ($status === 503) {
-                    return ['ok' => false, 'status' => 503, 'error' => 'Model '.$model.' sibuk (503). Mencoba model lain...'];
+                    return ['ok' => false, 'status' => 503, 'model' => $model, 'truncated' => false, 'error' => 'Model '.$model.' sibuk (503). Mencoba model lain...'];
                 }
 
-                return ['ok' => false, 'status' => $status, 'error' => 'Gemini gagal ('.$status.'): '.$this->shorten($msg)];
+                return ['ok' => false, 'status' => $status, 'model' => $model, 'truncated' => false, 'error' => 'Gemini gagal ('.$status.'): '.$this->shorten($msg)];
             }
 
-            $text = '';
-            $parts = $resp->json('candidates.0.content.parts') ?? [];
-            foreach ($parts as $p) {
-                if (isset($p['text'])) {
-                    $text .= $p['text'];
+            $json = $resp->json();
+            $json = is_array($json) ? $json : [];
+            $text = $this->geminiCandidateText($json);
+            $finish = strtoupper((string) data_get($json, 'candidates.0.finishReason', 'unknown'));
+            $usage = data_get($json, 'usageMetadata');
+            $truncated = $finish === 'MAX_TOKENS';
+
+            $this->logProvider('info', [
+                'provider' => 'gemini',
+                'model' => $model,
+                'status' => $status,
+                'finish_reason' => $finish,
+                'truncated' => $truncated,
+            ]);
+
+            if ($truncated) {
+                if (! $retriedMaxTokens) {
+                    $retryTokens = $this->nextOutputTokenBudget($maxOutputTokens);
+                    if ($retryTokens > $maxOutputTokens) {
+                        $retryOptions = $options;
+                        $retryOptions['max_tokens'] = $retryTokens;
+
+                        return $this->chatGeminiOnce($cfg, $model, $messages, $retryOptions, true);
+                    }
                 }
+
+                return [
+                    'ok' => false,
+                    'truncated' => true,
+                    'model' => $model,
+                    'finish_reason' => $finish,
+                    'usage' => is_array($usage) ? $usage : null,
+                    'error' => 'Jawaban AI terpotong sebelum selesai.',
+                ];
             }
+
             if ($text === '') {
-                $finish = $resp->json('candidates.0.finishReason') ?? 'unknown';
-                if ($finish === 'MAX_TOKENS') {
-                    return ['ok' => false, 'status' => 429, 'error' => 'Model '.$model.' kehabisan token output.'];
-                }
-
-                return ['ok' => false, 'error' => 'Gemini tidak mengembalikan teks (finishReason: '.$finish.').'];
+                return [
+                    'ok' => false,
+                    'truncated' => false,
+                    'model' => $model,
+                    'finish_reason' => $finish,
+                    'usage' => is_array($usage) ? $usage : null,
+                    'error' => 'Gemini tidak mengembalikan teks (finishReason: '.$finish.').',
+                ];
             }
 
-            return ['ok' => true, 'text' => $text, 'raw' => $resp->json()];
-        } catch (\Throwable $e) {
-            Log::warning('Gemini exception', ['model' => $model, 'msg' => $e->getMessage()]);
+            return [
+                'ok' => true,
+                'text' => $text,
+                'model' => $model,
+                'finish_reason' => $finish,
+                'truncated' => false,
+                'usage' => is_array($usage) ? $usage : null,
+                'raw' => $json,
+            ];
+        } catch (\Throwable) {
+            $this->logProvider('warning', [
+                'provider' => 'gemini',
+                'model' => $model,
+                'status' => null,
+                'finish_reason' => null,
+                'truncated' => false,
+            ]);
 
-            return ['ok' => false, 'error' => 'Gangguan jaringan ke Gemini: '.$e->getMessage()];
+            return ['ok' => false, 'model' => $model, 'truncated' => false, 'error' => 'Gangguan jaringan ke Gemini.'];
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $json
+     */
+    private function geminiCandidateText(array $json): string
+    {
+        $parts = data_get($json, 'candidates.0.content.parts', []);
+        $text = '';
+
+        foreach (is_array($parts) ? $parts : [] as $part) {
+            if (is_array($part) && isset($part['text'])) {
+                $text .= (string) $part['text'];
+            }
+        }
+
+        return $text;
+    }
+
+    private function nextOutputTokenBudget(int $current): int
+    {
+        $current = max(1, $current);
+
+        return min(max($current * 2, $current + 512), self::MAX_OUTPUT_TOKEN_CAP);
+    }
+
+    /**
+     * @param  array{provider: string, model?: string|null, status?: int|null, finish_reason?: string|null, truncated?: bool}  $context
+     */
+    private function logProvider(string $level, array $context): void
+    {
+        $safe = [
+            'provider' => $context['provider'],
+            'model' => $context['model'] ?? null,
+            'status' => $context['status'] ?? null,
+            'finish_reason' => $context['finish_reason'] ?? null,
+            'truncated' => (bool) ($context['truncated'] ?? false),
+        ];
+
+        if ($level === 'warning') {
+            Log::warning('AI provider response', $safe);
+
+            return;
+        }
+
+        Log::info('AI provider response', $safe);
     }
 
     /**
@@ -260,25 +374,79 @@ class AiService
             $resp = $http->post($url, $payload);
 
             if (! $resp->successful()) {
-                Log::warning($this->providerLabel().' error', ['status' => $resp->status(), 'body' => $resp->body()]);
-                $msg = $resp->json('error.message') ?? $resp->body();
+                $this->logProvider('warning', [
+                    'provider' => $this->provider(),
+                    'model' => is_string($model) ? $model : null,
+                    'status' => $resp->status(),
+                    'finish_reason' => null,
+                    'truncated' => false,
+                ]);
+                $msg = $resp->json('error.message') ?? '';
 
                 return [
                     'ok' => false,
+                    'status' => $resp->status(),
+                    'model' => is_string($model) ? $model : null,
+                    'truncated' => false,
                     'error' => $this->providerLabel().' gagal ('.$resp->status().'): '.$this->shorten($msg),
                 ];
             }
 
-            $text = (string) $resp->json('choices.0.message.content', '');
-            if ($text === '') {
-                return ['ok' => false, 'error' => $this->providerLabel().' tidak mengembalikan teks.'];
+            $json = $resp->json();
+            $json = is_array($json) ? $json : [];
+            $text = (string) data_get($json, 'choices.0.message.content', '');
+            $finish = strtoupper((string) data_get($json, 'choices.0.finish_reason', 'unknown'));
+            $truncated = $finish === 'LENGTH';
+            $usage = data_get($json, 'usage');
+
+            $this->logProvider('info', [
+                'provider' => $this->provider(),
+                'model' => is_string($model) ? $model : null,
+                'status' => $resp->status(),
+                'finish_reason' => $finish,
+                'truncated' => $truncated,
+            ]);
+
+            if ($truncated) {
+                return [
+                    'ok' => false,
+                    'truncated' => true,
+                    'model' => is_string($model) ? $model : null,
+                    'finish_reason' => $finish,
+                    'usage' => is_array($usage) ? $usage : null,
+                    'error' => 'Jawaban AI terpotong sebelum selesai.',
+                ];
             }
 
-            return ['ok' => true, 'text' => $text, 'raw' => $resp->json()];
-        } catch (\Throwable $e) {
-            Log::warning($this->providerLabel().' exception', ['msg' => $e->getMessage()]);
+            if ($text === '') {
+                return [
+                    'ok' => false,
+                    'truncated' => false,
+                    'model' => is_string($model) ? $model : null,
+                    'finish_reason' => $finish,
+                    'error' => $this->providerLabel().' tidak mengembalikan teks.',
+                ];
+            }
 
-            return ['ok' => false, 'error' => 'Gangguan jaringan: '.$e->getMessage()];
+            return [
+                'ok' => true,
+                'text' => $text,
+                'model' => is_string($model) ? $model : null,
+                'finish_reason' => $finish,
+                'truncated' => false,
+                'usage' => is_array($usage) ? $usage : null,
+                'raw' => $json,
+            ];
+        } catch (\Throwable) {
+            $this->logProvider('warning', [
+                'provider' => $this->provider(),
+                'model' => is_string($model) ? $model : null,
+                'status' => null,
+                'finish_reason' => null,
+                'truncated' => false,
+            ]);
+
+            return ['ok' => false, 'truncated' => false, 'error' => 'Gangguan jaringan ke penyedia AI.'];
         }
     }
 

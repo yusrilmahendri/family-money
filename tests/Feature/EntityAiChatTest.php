@@ -3,6 +3,8 @@
 use App\Enums\AuditAction;
 use App\Enums\FinanceAccountType;
 use App\Models\AuditLog;
+use App\Models\Budget;
+use App\Models\BudgetActivity;
 use App\Models\Category;
 use App\Models\FinanceEntity;
 use App\Models\Income;
@@ -254,4 +256,289 @@ it('resolves the asked financial period from the user message', function () {
         ->and($named['from'])->toBe('2026-08-01')
         ->and($named['to'])->toBe('2026-08-31')
         ->and($default['from'])->toBe('2026-08-01');
+});
+
+it('builds FAMILY category breakdown from the route entity transactions only', function () {
+    $this->travelTo(\Carbon\Carbon::parse('2026-08-23 10:00:00', config('app.timezone')));
+    $family = FinanceEntity::factory()->family()->create(['name' => 'Keluarga KategoriA']);
+    $other = FinanceEntity::factory()->family()->create(['name' => 'Keluarga KategoriB']);
+    $account = chatCash($family, 'Kas KategoriA', 1_000_000);
+    $otherAccount = chatCash($other, 'Kas KategoriB', 1_000_000);
+    $makanan = Category::factory()->create(['finance_entity_id' => $family->id, 'name' => 'MakananBoros']);
+    $transport = Category::factory()->create(['finance_entity_id' => $family->id, 'name' => 'TransportKecil']);
+    $rahasia = Category::factory()->create(['finance_entity_id' => $other->id, 'name' => 'RahasiaBorosB']);
+
+    Transaction::query()->create([
+        'finance_entity_id' => $family->id,
+        'finance_account_id' => $account->id,
+        'category_id' => $makanan->id,
+        'context' => FinanceContext::PRIBADI,
+        'amount' => 250_000,
+        'transaction_date' => '2026-08-10',
+        'description' => 'MakanA',
+    ]);
+    Transaction::query()->create([
+        'finance_entity_id' => $family->id,
+        'finance_account_id' => $account->id,
+        'category_id' => $transport->id,
+        'context' => FinanceContext::PRIBADI,
+        'amount' => 40_000,
+        'transaction_date' => '2026-08-11',
+        'description' => 'BensinA',
+    ]);
+    Transaction::query()->create([
+        'finance_entity_id' => $other->id,
+        'finance_account_id' => $otherAccount->id,
+        'category_id' => $rahasia->id,
+        'context' => FinanceContext::PRIBADI,
+        'amount' => 9_000_000,
+        'transaction_date' => '2026-08-12',
+        'description' => 'BelanjaB',
+    ]);
+
+    $context = chatInsight()->chatContext($family, 'Kategori apa yang paling boros?');
+
+    expect($context['kategori'][0]['name'])->toBe('MakananBoros')
+        ->and($context['kategori'][0]['total'])->toBe(250_000.0)
+        ->and($context['facts_relevant_to_question']['top_category']['name'])->toBe('MakananBoros')
+        ->and(json_encode($context))->not->toContain('RahasiaBorosB')
+        ->not->toContain('Keluarga KategoriB');
+});
+
+it('builds BUSINESS category breakdown from operational activities of the route entity', function () {
+    $this->travelTo(\Carbon\Carbon::parse('2026-08-23 10:00:00', config('app.timezone')));
+    $business = FinanceEntity::factory()->business()->create(['name' => 'Usaha KategoriA']);
+    $other = FinanceEntity::factory()->business()->create(['name' => 'Usaha KategoriB']);
+    $account = chatCash($business, 'Kas Usaha KategoriA', 0);
+    $pupuk = Category::factory()->create([
+        'finance_entity_id' => $business->id,
+        'name' => 'PupukBoros',
+        'context' => FinanceContext::USAHA_KEBUN,
+    ]);
+    $upah = Category::factory()->create([
+        'finance_entity_id' => $business->id,
+        'name' => 'UpahKecil',
+        'context' => FinanceContext::USAHA_KEBUN,
+    ]);
+    $budgetPupuk = Budget::query()->create([
+        'finance_entity_id' => $business->id,
+        'category_id' => $pupuk->id,
+        'amount' => 500_000,
+        'amount_saldo' => 0,
+        'periode' => '2026-08-01',
+    ]);
+    $budgetUpah = Budget::query()->create([
+        'finance_entity_id' => $business->id,
+        'category_id' => $upah->id,
+        'amount' => 200_000,
+        'amount_saldo' => 0,
+        'periode' => '2026-08-01',
+    ]);
+    BudgetActivity::query()->create([
+        'budget_id' => $budgetPupuk->id,
+        'finance_account_id' => $account->id,
+        'name' => 'Beli pupuk',
+        'amount' => 180_000,
+        'activity_date' => '2026-08-08',
+    ]);
+    BudgetActivity::query()->create([
+        'budget_id' => $budgetUpah->id,
+        'finance_account_id' => $account->id,
+        'name' => 'Upah harian',
+        'amount' => 70_000,
+        'activity_date' => '2026-08-09',
+    ]);
+    $otherBudget = Budget::query()->create([
+        'finance_entity_id' => $other->id,
+        'category_id' => Category::factory()->create([
+            'finance_entity_id' => $other->id,
+            'name' => 'RahasiaOpexB',
+            'context' => FinanceContext::USAHA_KEBUN,
+        ])->id,
+        'amount' => 1,
+        'amount_saldo' => 0,
+        'periode' => '2026-08-01',
+    ]);
+    BudgetActivity::query()->create([
+        'budget_id' => $otherBudget->id,
+        'finance_account_id' => chatCash($other, 'Kas Usaha KategoriB', 0)->id,
+        'name' => 'OpexB',
+        'amount' => 777_000,
+        'activity_date' => '2026-08-08',
+    ]);
+
+    $context = chatInsight()->chatContext($business, 'Biaya operasional terbesar apa?');
+
+    expect($context['kategori'][0]['name'])->toBe('PupukBoros')
+        ->and($context['kategori'][0]['total'])->toBe(180_000.0)
+        ->and($context['facts_relevant_to_question']['top_category']['name'])->toBe('PupukBoros')
+        ->and($context['facts_relevant_to_question'])->toHaveKey('period_operational_expense')
+        ->and(json_encode($context))->not->toContain('RahasiaOpexB')
+        ->not->toContain('Usaha KategoriB');
+});
+
+it('sends top category evidence for the most expensive category question', function () {
+    $this->travelTo(\Carbon\Carbon::parse('2026-08-23 10:00:00', config('app.timezone')));
+    $family = FinanceEntity::factory()->family()->create(['name' => 'Keluarga Evidence']);
+    $account = chatCash($family, 'Kas Evidence', 500_000);
+    $category = Category::factory()->create(['finance_entity_id' => $family->id, 'name' => 'BelanjaTerbesar']);
+    Transaction::query()->create([
+        'finance_entity_id' => $family->id,
+        'finance_account_id' => $account->id,
+        'category_id' => $category->id,
+        'context' => FinanceContext::PRIBADI,
+        'amount' => 88_000,
+        'transaction_date' => '2026-08-15',
+        'description' => 'BelanjaEvidence',
+    ]);
+    chatGrant($family);
+
+    $seen = null;
+    $ai = Mockery::mock(AiService::class);
+    $ai->shouldReceive('isConfigured')->andReturn(true);
+    $ai->shouldReceive('chat')->once()->andReturnUsing(function (array $messages, array $options) use (&$seen) {
+        $seen = json_encode([$messages, $options]) ?: '';
+
+        return ['ok' => true, 'text' => 'BelanjaTerbesar adalah kategori paling boros.', 'truncated' => false];
+    });
+    app()->instance(AiService::class, $ai);
+    app()->forgetInstance(EntityAiChatService::class);
+
+    $this->postJson(route('entity.ai.chat', $family), [
+        'message' => 'Kategori apa yang paling boros?',
+    ])->assertOk()->assertJsonPath('success', true);
+
+    expect($seen)->toBeString()
+        ->toContain('BelanjaTerbesar')
+        ->toContain('facts_relevant_to_question')
+        ->toContain('top_category')
+        ->toContain('"max_tokens":'.EntityAiChatService::OUTPUT_TOKENS)
+        ->not->toContain('token_hash')
+        ->not->toContain('"password"');
+});
+
+it('does not invent a house cost when planning has no target amount', function () {
+    $family = FinanceEntity::factory()->family()->create(['name' => 'Keluarga Rumah']);
+    chatCash($family, 'Kas Rumah', 100_000);
+
+    $context = chatInsight()->chatContext($family, 'Jika saya ingin membangun rumah, perlu dana berapa tabungannya?');
+    $prompt = app(EntityAiChatService::class)->systemPrompt($family, $context);
+    $blob = json_encode($context).$prompt;
+
+    expect($context['facts_relevant_to_question']['planning']['user_provided_target_amount'])->toBeFalse()
+        ->and($blob)->toContain('Jangan mengarang nominal biaya')
+        ->toContain('Fakta dari data')
+        ->toContain('Simulasi/Asumsi')
+        ->not->toContain('500000000')
+        ->not->toContain('harga rumah');
+});
+
+it('answers month questions from period fields rather than lifetime totals', function () {
+    $this->travelTo(\Carbon\Carbon::parse('2026-08-23 10:00:00', config('app.timezone')));
+    $family = FinanceEntity::factory()->family()->create(['name' => 'Keluarga Periode']);
+    $account = chatCash($family, 'Kas Periode', 2_000_000);
+    $lalu = Category::factory()->create(['finance_entity_id' => $family->id, 'name' => 'BelanjaJuli']);
+    $kini = Category::factory()->create(['finance_entity_id' => $family->id, 'name' => 'BelanjaAgustus']);
+    Transaction::query()->create([
+        'finance_entity_id' => $family->id,
+        'finance_account_id' => $account->id,
+        'category_id' => $lalu->id,
+        'context' => FinanceContext::PRIBADI,
+        'amount' => 400_000,
+        'transaction_date' => '2026-07-12',
+        'description' => 'JuliBesar',
+    ]);
+    Transaction::query()->create([
+        'finance_entity_id' => $family->id,
+        'finance_account_id' => $account->id,
+        'category_id' => $kini->id,
+        'context' => FinanceContext::PRIBADI,
+        'amount' => 55_000,
+        'transaction_date' => '2026-08-12',
+        'description' => 'AgustusKecil',
+    ]);
+
+    $context = chatInsight()->chatContext($family, 'Berapa pengeluaran bulan ini?');
+
+    expect($context['period_expense'])->toBe(55_000.0)
+        ->and($context['lifetime_expense'])->toBe(455_000.0)
+        ->and($context['kategori'][0]['name'])->toBe('BelanjaAgustus')
+        ->and($context['facts_relevant_to_question']['period_expense'])->toBe(55_000.0)
+        ->and($context['facts_relevant_to_question']['use_period_fields_first'])->toBeTrue()
+        ->and($context['data_priority']['primary'])->toBe('period');
+});
+
+it('sends the current user message only once even if history already contains it', function () {
+    $family = FinanceEntity::factory()->family()->create(['name' => 'Keluarga History']);
+    chatCash($family, 'Kas History', 10_000);
+    chatGrant($family);
+    $question = 'Berapa saldo yang tersedia?';
+    $roles = [];
+
+    $ai = Mockery::mock(AiService::class);
+    $ai->shouldReceive('isConfigured')->andReturn(true);
+    $ai->shouldReceive('chat')->once()->andReturnUsing(function (array $messages) use (&$roles) {
+        $roles = array_map(fn (array $turn) => ($turn['role'] ?? '').':'.($turn['content'] ?? ''), $messages);
+
+        return ['ok' => true, 'text' => 'Saldo tersedia.', 'truncated' => false];
+    });
+    app()->instance(AiService::class, $ai);
+    app()->forgetInstance(EntityAiChatService::class);
+
+    $this->postJson(route('entity.ai.chat', $family), [
+        'message' => $question,
+        'history' => [
+            ['role' => 'user', 'content' => 'Pertanyaan lama'],
+            ['role' => 'assistant', 'content' => 'Jawaban lama'],
+            ['role' => 'user', 'content' => $question],
+        ],
+    ])->assertOk()->assertJsonPath('success', true);
+
+    $userTurns = array_values(array_filter($roles, fn (string $turn) => str_starts_with($turn, 'user:'.$question)));
+
+    expect($userTurns)->toHaveCount(1)
+        ->and(implode("\n", $roles))->toContain('user:Pertanyaan lama')
+        ->toContain('assistant:Jawaban lama');
+});
+
+it('stores a complete answer in history and skips truncated or failed replies', function () {
+    $family = FinanceEntity::factory()->family()->create(['name' => 'Keluarga Simpan']);
+    chatCash($family, 'Kas Simpan', 10_000);
+    chatGrant($family);
+
+    $ai = Mockery::mock(AiService::class);
+    $ai->shouldReceive('isConfigured')->andReturn(true);
+    $ai->shouldReceive('chat')->once()->andReturn([
+        'ok' => false,
+        'truncated' => true,
+        'finish_reason' => 'MAX_TOKENS',
+        'text' => '**Ringkasan Kond',
+        'error' => 'Jawaban AI terpotong sebelum selesai.',
+    ]);
+    $ai->shouldReceive('chat')->once()->andReturn([
+        'ok' => true,
+        'truncated' => false,
+        'text' => 'Saldo entity ini Rp 10.000.',
+    ]);
+    app()->instance(AiService::class, $ai);
+    app()->forgetInstance(EntityAiChatService::class);
+
+    $this->postJson(route('entity.ai.chat', $family), [
+        'message' => 'Jelaskan kondisi keuangan saya',
+    ])->assertOk()
+        ->assertJsonPath('success', false)
+        ->assertJsonPath('message', EntityAiChatService::SAFE_ERROR);
+
+    expect(app(EntityAiChatService::class)->history($family))->toBe([]);
+
+    $this->postJson(route('entity.ai.chat', $family), [
+        'message' => 'Berapa saldo?',
+    ])->assertOk()->assertJsonPath('success', true);
+
+    $stored = app(EntityAiChatService::class)->history($family);
+
+    expect($stored)->toHaveCount(2)
+        ->and($stored[0]['content'])->toBe('Berapa saldo?')
+        ->and($stored[1]['content'])->toBe('Saldo entity ini Rp 10.000.')
+        ->and(json_encode($stored))->not->toContain('**Ringkasan Kond');
 });

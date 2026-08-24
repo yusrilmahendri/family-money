@@ -264,7 +264,9 @@
                 period: root.getAttribute('data-period') || 'month',
                 from: root.getAttribute('data-from') || null,
                 to: root.getAttribute('data-to') || null,
-                history: history.filter(function (item) { return item.role !== 'user' || item.content !== text; }).slice(-12)
+                history: history.filter(function (item) {
+                    return item && item.role && item.content && (item.role !== 'user' || item.content !== text);
+                }).slice(-8)
             })
         }).then(function (res) {
             return res.json().then(function (body) { return { ok: res.ok, body: body }; });
@@ -276,6 +278,9 @@
             addBubble('assistant', answer, meta);
             if (body.success) {
                 history.push({ role: 'assistant', content: answer });
+                persist();
+            } else if (history.length && history[history.length - 1].role === 'user' && history[history.length - 1].content === text) {
+                history.pop();
                 persist();
             }
         }).catch(function () {

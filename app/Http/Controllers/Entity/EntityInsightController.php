@@ -49,34 +49,7 @@ class EntityInsightController extends Controller
 
     public function summary(FinanceEntity $financeEntity): JsonResponse
     {
-        $payload = $this->data->payload($financeEntity);
-
-        if (! $this->ai->isConfigured()) {
-            return response()->json([
-                'ok' => false,
-                'payload' => $payload,
-                'error' => 'AI belum dikonfigurasi.',
-            ]);
-        }
-
-        $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-        $resp = $this->ai->chat([
-            [
-                'role' => 'system',
-                'content' => 'Anda analis keuangan. Analisis HANYA entity '.$financeEntity->name.' ('.$financeEntity->type->value.'). Jangan memakai data entity lain. Bahasa Indonesia, format Rupiah.',
-            ],
-            [
-                'role' => 'user',
-                'content' => "Ringkas posisi keuangan entity ini berdasarkan JSON berikut:\n".$json,
-            ],
-        ], ['temperature' => 0.3, 'max_tokens' => 700]);
-
-        return response()->json([
-            'ok' => (bool) ($resp['ok'] ?? false),
-            'payload' => $payload,
-            'summary' => trim((string) ($resp['text'] ?? '')),
-            'error' => $resp['error'] ?? null,
-        ]);
+        return response()->json($this->chat->summarize($financeEntity));
     }
 
     public function chat(Request $request, FinanceEntity $financeEntity): JsonResponse

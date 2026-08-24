@@ -182,6 +182,11 @@ class EntityInsightDataService
             'aktivitas_terbaru' => array_slice($payload['recent_activity'], 0, 8),
             'ringkasan' => $structured['ai_context']['ringkasan'],
             'anomali' => $structured['ai_context']['anomali'],
+            'data_priority' => [
+                'primary' => 'period',
+                'period_fields' => ['period_income', 'period_expense', 'periode_cash_flow', 'kategori', 'ringkasan', 'anomali'],
+                'secondary_fields' => ['lifetime_income', 'lifetime_expense', 'saldo_total'],
+            ],
         ];
 
         if ($entity->isFamily()) {
@@ -192,6 +197,10 @@ class EntityInsightDataService
             $context['business'] = $payload['business'];
             $context['profit'] = $payload['profit'];
             $context['anggaran'] = $payload['budget'];
+        }
+
+        if (is_string($message) && trim($message) !== '') {
+            $context['facts_relevant_to_question'] = $this->factsRelevantToQuestion($entity, $context, $message);
         }
 
         return $this->sanitize($context);
@@ -406,6 +415,145 @@ class EntityInsightDataService
             ->take(6)
             ->values()
             ->all();
+    }
+
+    /**
+     * Deterministic evidence the model must use for common questions.
+     *
+     * @param  array<string, mixed>  $context
+     * @return array<string, mixed>
+     */
+    public function factsRelevantToQuestion(FinanceEntity $entity, array $context, string $message): array
+    {
+        $text = mb_strtolower(trim($message));
+        $periodIncome = (float) ($context['period_income'] ?? 0);
+        $periodExpense = (float) ($context['period_expense'] ?? 0);
+        $facts = [
+            'asked_period' => $context['period'] ?? null,
+            'use_period_fields_first' => true,
+            'lifetime_is_secondary_context_only' => true,
+            'period_income' => $periodIncome,
+            'period_expense' => $periodExpense,
+            'periode_cash_flow_income' => (float) ($context['periode_cash_flow']['income'] ?? 0),
+            'periode_cash_flow_expense' => (float) ($context['periode_cash_flow']['expense'] ?? 0),
+        ];
+
+        if ($periodIncome == 0.0 && $periodExpense == 0.0) {
+            $facts['period_has_no_transactions'] = true;
+            $facts['zero_period_instruction'] = 'Tidak ada transaksi pada periode ini. Jangan menyimpulkan bahwa kondisi aman hanya karena angkanya 0.';
+        }
+
+        if ($this->mentions($text, ['kategori', 'boros', 'pengeluaran terbesar', 'biaya operasional terbesar', 'biaya terbesar'])) {
+            $top = $context['kategori'][0] ?? null;
+            $facts['top_category'] = is_array($top) ? $top : null;
+            $facts['category_instruction'] = is_array($top)
+                ? 'Wajib memakai ranking field kategori. Kategori teratas adalah evidence pengeluaran/biaya terbesar pada periode ini.'
+                : 'Tidak ada data kategori pada periode ini. Jangan mengarang kategori.';
+        }
+
+        if ($this->mentions($text, ['saldo', 'uang tersisa', 'uang tersedia'])) {
+            $facts['saldo_total'] = $context['saldo_total'] ?? 0;
+            $facts['saldo_instruction'] = 'Jawab saldo dengan field saldo_total. Saldo bukan laba.';
+        }
+
+        if ($this->mentions($text, ['pengeluaran', 'belanja', 'expense', 'boros'])) {
+            $facts['period_expense_rp'] = $this->rupiah($periodExpense);
+        }
+
+        if ($this->mentions($text, ['pemasukan', 'pendapatan', 'income', 'gaji', 'revenue'])) {
+            $facts['period_income_rp'] = $this->rupiah($periodIncome);
+        }
+
+        if ($entity->isFamily()) {
+            if ($this->mentions($text, ['hutang', 'cicilan', 'utang'])) {
+                $facts['hutang_outstanding'] = $context['hutang_outstanding'] ?? 0;
+            }
+            if ($this->mentions($text, ['tabungan', 'tabung'])) {
+                $facts['tabungan'] = $context['tabungan'] ?? 0;
+            }
+        } else {
+            $profit = is_array($context['profit'] ?? null) ? $context['profit'] : [];
+            $budget = is_array($context['anggaran'] ?? null) ? $context['anggaran'] : [];
+
+            if ($this->mentions($text, ['laba', 'profit', 'rugi'])) {
+                $facts['period_profit'] = $profit['period_profit'] ?? null;
+            }
+            if ($this->mentions($text, ['operasional', 'opex', 'biaya operasional'])) {
+                $facts['period_operational_expense'] = $profit['period_operational_expense'] ?? null;
+            }
+            if ($this->mentions($text, ['anggaran', 'budget'])) {
+                $facts['anggaran'] = [
+                    'period_planned' => $budget['period_planned'] ?? null,
+                    'period_realized' => $budget['period_realized'] ?? null,
+                ];
+            }
+        }
+
+        if ($this->isPlanningQuestion($text)) {
+            $hasTarget = $this->hasUserTargetAmount($text);
+            $facts['planning'] = [
+                'user_provided_target_amount' => $hasTarget,
+                'instruction' => $hasTarget
+                    ? 'Boleh membuat simulasi hanya dari nominal yang diberikan pengguna. Bedakan jelas Fakta dari data dan Simulasi/Asumsi. Jangan menghitung ulang saldo atau laba backend.'
+                    : 'Jangan mengarang nominal biaya, termasuk biaya rumah. Minta nominal target kepada pengguna, atau berikan rumus/skenario tanpa mengarang angka.',
+            ];
+        }
+
+        $anomalyItems = $context['anomali']['items'] ?? $context['anomali'] ?? [];
+        if (is_array($anomalyItems) && $anomalyItems !== []) {
+            $facts['has_anomalies'] = true;
+            $facts['anomaly_instruction'] = 'Jika relevan dengan pertanyaan, jelaskan anomali yang ada di field anomali. Jangan menambah anomali baru.';
+        }
+
+        return $facts;
+    }
+
+    /**
+     * @param  list<string>  $needles
+     */
+    private function mentions(string $text, array $needles): bool
+    {
+        foreach ($needles as $needle) {
+            if ($needle !== '' && str_contains($text, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isPlanningQuestion(string $text): bool
+    {
+        return $this->mentions($text, [
+            'rumah',
+            'membangun',
+            'renovasi',
+            'rencana',
+            'target',
+            'impian',
+            'mau beli',
+            'ingin beli',
+            'perlu dana',
+            'berapa tabungan',
+            'kapan cukup',
+            'simulasi',
+        ]);
+    }
+
+    private function hasUserTargetAmount(string $text): bool
+    {
+        if (preg_match('/rp\s*[\d.]+/i', $text) === 1) {
+            return true;
+        }
+
+        return preg_match('/\b\d+([.,]\d+)?\s*(juta|jt|miliar|milyar|ribu|rb)\b/i', $text) === 1;
+    }
+
+    private function rupiah(float $amount): string
+    {
+        $sign = $amount < 0 ? '-' : '';
+
+        return $sign.'Rp '.number_format(abs($amount), 0, ',', '.');
     }
 
     /**
