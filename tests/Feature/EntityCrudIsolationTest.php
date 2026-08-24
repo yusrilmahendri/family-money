@@ -364,14 +364,16 @@ it('keeps multi-tab requests scoped to the route entity rather than session', fu
         ->assertDontSee('Hanya B');
 });
 
-it('blocks family routes on a business entity and the reverse', function () {
+it('blocks family-only and business-only routes across entity types while sharing incomes', function () {
     $family = FinanceEntity::factory()->family()->create();
     $business = FinanceEntity::factory()->business()->create();
     grantEntityAccess($family);
     grantEntityAccess($business);
 
-    $this->get(route('entity.incomes.index', $family))->assertNotFound();
+    $this->get(route('entity.incomes.index', $family))->assertOk();
+    $this->get(route('entity.incomes.index', $business))->assertOk();
     $this->get(route('entity.transactions.index', $business))->assertNotFound();
+    $this->get(route('entity.budgets.index', $family))->assertNotFound();
 });
 
 it('copies finance_entity_id and consistent context when the recurring runner posts', function () {

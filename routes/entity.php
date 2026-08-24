@@ -48,6 +48,8 @@ Route::middleware('entity.access')->prefix('e/{financeEntity}')->name('entity.')
     Route::get('transfers/create', [EntityTransferController::class, 'create'])->name('transfers.create');
     Route::post('transfers', [EntityTransferController::class, 'store'])->name('transfers.store');
 
+    Route::resource('incomes', EntityIncomeController::class)->except(['show']);
+
     Route::get('capital-contributions', [EntityCapitalContributionController::class, 'index'])->name('capital-contributions.index');
     Route::get('owner-withdrawals', [EntityOwnerWithdrawalController::class, 'index'])->name('owner-withdrawals.index');
     Route::get('profit-distributions', [EntityProfitDistributionController::class, 'index'])->name('profit-distributions.index');
@@ -78,7 +80,6 @@ Route::middleware('entity.access')->prefix('e/{financeEntity}')->name('entity.')
     });
 
     Route::middleware('entity.type:BUSINESS')->group(function () {
-        Route::resource('incomes', EntityIncomeController::class)->except(['show']);
         Route::resource('budgets', EntityBudgetController::class);
         Route::post('budgets/{budget}/activities', [EntityBudgetController::class, 'storeActivity'])->name('budgets.activities.store');
         Route::get('operational-expenses', [EntityOperationalExpenseController::class, 'index'])->name('operational.index');

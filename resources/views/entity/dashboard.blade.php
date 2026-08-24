@@ -49,7 +49,7 @@
 
         @if($entity->isFamily())
             <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-arrow-down', 'tone' => 'green', 'label' => 'Pemasukan', 'value' => $metrics['pemasukan'], 'hint' => 'Total pemasukan'])
+                @include('entity.components.stat-card', ['icon' => 'fa-arrow-down', 'tone' => 'green', 'label' => 'Pemasukan', 'value' => $metrics['pemasukan'], 'hint' => 'Pemasukan keluarga, bukan transfer/prive/laba'])
             </div>
             <div class="col-lg-3 col-sm-6 col-xs-12">
                 @include('entity.components.stat-card', ['icon' => 'fa-arrow-up', 'tone' => 'red', 'label' => 'Pengeluaran', 'value' => $metrics['pengeluaran'], 'hint' => 'Total pengeluaran'])

@@ -4,6 +4,7 @@ namespace App\Services\Insight;
 
 use App\Models\BudgetActivity;
 use App\Models\FinanceEntity;
+use App\Models\Income;
 use App\Models\Transaction;
 use App\Services\BusinessProfitService;
 use App\Services\EntityReportService;
@@ -100,6 +101,7 @@ class EntityInsightDataService
             ],
             'recent_activity' => array_slice($lifetime['movements'], 0, 20),
             'category_breakdown' => $this->categoryBreakdown($entity, $period['from'], $period['to']),
+            'income_category_breakdown' => $this->incomeCategoryBreakdown($entity, $period['from'], $period['to']),
         ];
 
         if ($entity->isFamily()) {
@@ -179,6 +181,7 @@ class EntityInsightDataService
             'period_expense' => $payload['income_expense']['month_expense'],
             'piutang' => $payload['receivable'],
             'kategori' => $payload['category_breakdown'],
+            'kategori_pemasukan' => $payload['income_category_breakdown'] ?? [],
             'aktivitas_terbaru' => array_slice($payload['recent_activity'], 0, 8),
             'ringkasan' => $structured['ai_context']['ringkasan'],
             'anomali' => $structured['ai_context']['anomali'],
@@ -400,6 +403,21 @@ class EntityInsightDataService
     }
 
     /**
+     * @return list<array{name: string, total: float, count: int}>
+     */
+    private function incomeCategoryBreakdown(FinanceEntity $entity, ?string $from, ?string $to): array
+    {
+        $rows = $entity->incomes()
+            ->with('category')
+            ->when($from, fn ($query) => $query->whereDate('income_date', '>=', $from))
+            ->when($to, fn ($query) => $query->whereDate('income_date', '<=', $to))
+            ->get()
+            ->groupBy(fn (Income $income) => $income->category?->name ?: 'Tanpa Kategori');
+
+        return $this->rankedGroups($rows);
+    }
+
+    /**
      * @param  Collection<string, Collection<int, mixed>>  $groups
      * @return list<array{name: string, total: float, count: int}>
      */
@@ -462,6 +480,10 @@ class EntityInsightDataService
 
         if ($this->mentions($text, ['pemasukan', 'pendapatan', 'income', 'gaji', 'revenue'])) {
             $facts['period_income_rp'] = $this->rupiah($periodIncome);
+            $topIncome = $context['kategori_pemasukan'][0] ?? null;
+            if (is_array($topIncome)) {
+                $facts['top_income_category'] = $topIncome;
+            }
         }
 
         if ($entity->isFamily()) {

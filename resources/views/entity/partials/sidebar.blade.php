@@ -12,6 +12,7 @@
 
     if ($entity->isFamily()) {
         $items = array_merge($items, [
+            ['label' => 'Pemasukan', 'icon' => 'fa-plus-circle', 'route' => 'entity.incomes.index', 'match' => 'entity.incomes.*'],
             ['label' => 'Pengeluaran', 'icon' => 'fa-shopping-cart', 'route' => 'entity.transactions.index', 'match' => 'entity.transactions.*'],
             ['label' => 'Hutang', 'icon' => 'fa-credit-card', 'route' => 'entity.debts.index', 'match' => 'entity.debts.*'],
             ['label' => 'Tabungan', 'icon' => 'fa-star', 'route' => 'entity.savings-goals.index', 'match' => 'entity.savings-goals.*'],

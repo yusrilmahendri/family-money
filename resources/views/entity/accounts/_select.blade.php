@@ -2,10 +2,11 @@
     /** @var \Illuminate\Support\Collection<int, \App\Models\FinanceAccount> $accounts */
     $accounts = $accounts ?? collect();
     $selected = old('finance_account_id', $selectedAccountId ?? $entity->defaultAccount()?->id);
+    $accountLabel = $accountLabel ?? 'Kas / Rekening';
 @endphp
 <div class="form-group">
-    <label>Kas / Rekening</label>
-    <select name="finance_account_id" class="form-control" required>
+    <label for="finance_account_id">{{ $accountLabel }}</label>
+    <select id="finance_account_id" name="finance_account_id" class="form-control" required>
         @forelse($accounts as $account)
             <option value="{{ $account->id }}" @selected((string) $selected === (string) $account->id)>
                 {{ $account->name }}@if($account->is_default) (default)@endif

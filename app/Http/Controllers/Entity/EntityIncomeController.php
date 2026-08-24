@@ -26,7 +26,7 @@ class EntityIncomeController extends Controller
     {
         return view('entity.incomes.index', [
             'entity' => $financeEntity,
-            'incomes' => $financeEntity->incomes()->with('financeAccount')->latest('income_date')->paginate(20),
+            'incomes' => $financeEntity->incomes()->with(['financeAccount', 'category'])->latest('income_date')->paginate(20),
             'title' => 'Pemasukan',
         ]);
     }
@@ -107,7 +107,7 @@ class EntityIncomeController extends Controller
      */
     private function validated(Request $request, FinanceEntity $entity, ?int $currentAccountId = null): array
     {
-        return $request->validate([
+        $rules = [
             'source' => ['required', 'string', 'max:255'],
             'amount' => $this->positiveRupiahRules(),
             'income_date' => ['required', 'date'],
@@ -115,7 +115,13 @@ class EntityIncomeController extends Controller
             'description' => ['nullable', 'string', 'max:255'],
             'finance_entity_id' => ['prohibited'],
             ...$this->financeAccountRules($entity, $currentAccountId),
-        ]);
+        ];
+
+        if ($entity->isFamily()) {
+            $rules['finance_account_id'][0] = 'required';
+        }
+
+        return $request->validate($rules);
     }
 
     private function owned(FinanceEntity $entity, Income $income): void
