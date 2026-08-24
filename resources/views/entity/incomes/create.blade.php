@@ -5,8 +5,10 @@
     <form method="POST" action="{{ route('entity.incomes.store', $entity) }}">
         @csrf
         @include('entity.incomes._form')
-        <button class="btn btn-primary">Simpan</button>
-        <a href="{{ route('entity.incomes.index', $entity) }}" class="btn btn-default">Batal</a>
+        <div class="entity-form-actions">
+            <button class="btn btn-primary">Simpan</button>
+            <a href="{{ route('entity.incomes.index', $entity) }}" class="btn btn-default">Batal</a>
+        </div>
     </form>
 @endsection
 

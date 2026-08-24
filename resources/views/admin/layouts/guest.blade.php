@@ -16,15 +16,25 @@
             margin: 0;
         }
         .login-wrap {
+            width: 100%;
             max-width: 420px;
             margin: 0 auto;
-            padding: 70px 15px 30px;
+            padding: 70px 12px 30px;
+            box-sizing: border-box;
         }
         .login-card {
             background: #fff;
             border-radius: 16px;
             padding: 32px 28px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            min-width: 0;
+        }
+        .login-card .form-control {
+            height: 42px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
         }
         .login-card h1 {
             font-size: 22px;
@@ -36,10 +46,6 @@
             color: #888;
             font-size: 13px;
             margin-bottom: 22px;
-        }
-        .login-card .form-control {
-            height: 42px;
-            border-radius: 8px;
         }
         .btn-login {
             width: 100%;
@@ -54,6 +60,10 @@
             opacity: 0.85;
             margin-top: 24px;
             font-size: 12px;
+        }
+        @media (max-width: 575.98px) {
+            .login-wrap { padding: 36px 12px 24px; }
+            .login-card { padding: 24px 16px; }
         }
     </style>
 </head>

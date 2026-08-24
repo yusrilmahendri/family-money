@@ -4,7 +4,7 @@
     <h3 style="margin-top:0;">Edit Access Link</h3>
     <p class="text-muted">{{ $entity->name }} — token plaintext tidak dapat ditampilkan ulang.</p>
 
-    <form action="{{ route('admin.finance-entities.access-links.update', [$entity, $accessToken]) }}" method="POST" style="max-width: 520px;">
+    <form action="{{ route('admin.finance-entities.access-links.update', [$entity, $accessToken]) }}" method="POST" class="admin-form">
         @csrf
         @method('PUT')
 
@@ -22,7 +22,9 @@
             @error('expires_at') <small class="text-danger">{{ $message }}</small> @enderror
         </div>
 
-        <button type="submit" class="btn btn-primary">Simpan</button>
-        <a href="{{ route('admin.finance-entities.access-links.index', $entity) }}" class="btn btn-default">Batal</a>
+        <div class="admin-form-actions">
+            <button type="submit" class="btn btn-primary">Simpan</button>
+            <a href="{{ route('admin.finance-entities.access-links.index', $entity) }}" class="btn btn-default">Batal</a>
+        </div>
     </form>
 @endsection

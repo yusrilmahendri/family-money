@@ -12,6 +12,8 @@
                 @endforeach
             </select>
         </div>
-        <button class="btn btn-primary">Simpan</button>
+        <div class="entity-form-actions">
+            <button class="btn btn-primary">Simpan</button>
+        </div>
     </form>
 @endsection

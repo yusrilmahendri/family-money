@@ -15,7 +15,9 @@
                 @endforeach
             </select>
         </div>
-        <button class="btn btn-primary">Perbarui</button>
-        <a href="{{ route('entity.transactions.index', $entity) }}" class="btn btn-default">Batal</a>
+        <div class="entity-form-actions">
+            <button class="btn btn-primary">Perbarui</button>
+            <a href="{{ route('entity.transactions.index', $entity) }}" class="btn btn-default">Batal</a>
+        </div>
     </form>
 @endsection

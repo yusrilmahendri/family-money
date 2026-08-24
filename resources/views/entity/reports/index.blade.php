@@ -22,10 +22,10 @@
 
     <p>Periode: {{ $report['period_label'] }}</p>
 
-    <div class="row">
-        <div class="col-sm-4"><div class="stat"><span class="lbl">Total Saldo</span><div class="val">Rp {{ number_format($report['balance_total'], 0, ',', '.') }}</div></div></div>
-        <div class="col-sm-4"><div class="stat"><span class="lbl">Piutang outstanding</span><div class="val">Rp {{ number_format($report['piutang_outstanding'], 0, ',', '.') }}</div></div></div>
-        <div class="col-sm-4"><div class="stat"><span class="lbl">Net cash periode</span><div class="val">Rp {{ number_format($report['cash_flow']['net_cash'], 0, ',', '.') }}</div></div></div>
+    <div class="entity-mini-metrics">
+        <div class="entity-mini-metric"><span>Total Saldo</span><strong>Rp {{ number_format($report['balance_total'], 0, ',', '.') }}</strong></div>
+        <div class="entity-mini-metric"><span>Piutang outstanding</span><strong>Rp {{ number_format($report['piutang_outstanding'], 0, ',', '.') }}</strong></div>
+        <div class="entity-mini-metric"><span>Net cash periode</span><strong>Rp {{ number_format($report['cash_flow']['net_cash'], 0, ',', '.') }}</strong></div>
     </div>
 
     @if($entity->isFamily())
@@ -57,15 +57,15 @@
 
     <h4>Saldo per Kas/Rekening</h4>
     <div class="entity-table-responsive">
-        <table class="table table-bordered entity-table">
+        <table class="table table-bordered entity-table entity-table--stackable">
             <thead><tr><th>Nama</th><th>Tipe</th><th>Nomor</th><th>Saldo</th></tr></thead>
             <tbody>
             @forelse($report['accounts'] as $account)
                 <tr>
-                    <td class="entity-table-text">{{ $account['name'] }}</td>
-                    <td>{{ $account['type'] }}</td>
-                    <td>{{ $account['account_number'] ?: '—' }}</td>
-                    <td class="entity-money">Rp {{ number_format($account['balance'], 0, ',', '.') }}</td>
+                    <td data-label="Nama" class="entity-table-text">{{ $account['name'] }}</td>
+                    <td data-label="Tipe">{{ $account['type'] }}</td>
+                    <td data-label="Nomor">{{ $account['account_number'] ?: '—' }}</td>
+                    <td data-label="Saldo" class="entity-money">Rp {{ number_format($account['balance'], 0, ',', '.') }}</td>
                 </tr>
             @empty
                 <tr><td colspan="4" class="entity-table-empty">Belum ada kas/rekening.</td></tr>

@@ -11,7 +11,7 @@
     @if($receivable->description)
         <p class="text-muted">{{ $receivable->description }}</p>
     @endif
-    <p>
+    <p class="entity-form-actions">
         <a href="{{ route('entity.receivables.edit', [$entity, $receivable]) }}" class="btn btn-default btn-sm">Edit</a>
         <a href="{{ route('entity.receivables.index', $entity) }}" class="btn btn-default btn-sm">Kembali</a>
     </p>
@@ -33,7 +33,9 @@
                 <label>Keterangan</label>
                 <input class="form-control" name="description">
             </div>
-            <button class="btn btn-primary">Catat pembayaran</button>
+            <div class="entity-form-actions">
+                <button class="btn btn-primary">Catat pembayaran</button>
+            </div>
         </form>
     @endif
 

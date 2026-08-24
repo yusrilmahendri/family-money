@@ -140,10 +140,16 @@
   margin-left: var(--admin-sidebar-width);
   padding: calc(var(--admin-navbar-height) + 20px) 20px 30px;
   min-height: 100vh;
+  min-width: 0;
+  width: calc(100% - var(--admin-sidebar-width));
+  max-width: calc(100% - var(--admin-sidebar-width));
+  box-sizing: border-box;
 }
 
 .admin-main-inner {
   max-width: 1200px;
+  min-width: 0;
+  width: 100%;
 }
 
 .admin-main .row {
@@ -200,6 +206,74 @@
   margin: 0 4px 6px 0;
 }
 
+.admin-form {
+  width: 100%;
+  max-width: 640px;
+  min-width: 0;
+}
+
+.admin-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-form .form-control,
+.admin-main .form-control,
+.admin-main select,
+.admin-main textarea,
+.admin-main input[type="date"],
+.admin-main input[type="datetime-local"],
+.admin-main input[type="text"],
+.admin-main input[type="password"] {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.admin-main .form-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 12px;
+}
+
+.admin-main .form-inline .form-group {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.admin-main .form-inline .form-control {
+  width: auto;
+  max-width: 100%;
+}
+
+.admin-body .modal-dialog {
+  width: auto;
+  max-width: calc(100vw - 24px);
+  margin: 12px auto;
+}
+
+.admin-body .modal-content {
+  min-width: 0;
+}
+
+.admin-body .modal-body {
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+}
+
+.admin-body .modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 @media (max-width: 767px) {
   .admin-actions {
     display: flex;
@@ -213,6 +287,58 @@
 
   .admin-actions .btn {
     margin: 0;
+  }
+
+  .admin-form {
+    max-width: 100%;
+  }
+
+  .admin-main .form-inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-main .form-inline .form-group,
+  .admin-main .form-inline .form-control,
+  .admin-main .form-inline select,
+  .admin-main .form-inline input,
+  .admin-main .form-inline .btn {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+
+  .admin-main table th[style] {
+    width: auto !important;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .admin-form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-form-actions .btn {
+    width: 100%;
+    margin: 0;
+  }
+
+  .admin-form > .btn,
+  .admin-form > a.btn {
+    display: block;
+    width: 100%;
+    margin: 0 0 8px;
+  }
+
+  .admin-body .modal-footer .btn {
+    width: 100%;
+    margin: 0;
+  }
+
+  .admin-audit-filters .col-xs-6 {
+    width: 100%;
   }
 }
 
@@ -256,6 +382,8 @@
 
   .admin-main {
     margin-left: 0;
+    width: 100%;
+    max-width: 100%;
     padding: calc(var(--admin-navbar-height) + 16px) 12px 24px;
   }
 

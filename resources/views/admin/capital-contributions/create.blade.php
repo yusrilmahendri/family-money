@@ -7,11 +7,13 @@
         <p>Belum ada usaha aktif yang dapat menerima modal.</p>
         <a href="{{ route('admin.finance-entities.capital-contributions.index', $entity) }}" class="btn btn-default">Kembali</a>
     @else
-        <form action="{{ route('admin.finance-entities.capital-contributions.store', $entity) }}" method="POST" style="max-width: 640px;">
+        <form action="{{ route('admin.finance-entities.capital-contributions.store', $entity) }}" method="POST" class="admin-form">
             @csrf
             @include('entity.capital-contributions._form', ['accounts' => $accounts, 'businesses' => $businesses])
-            <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Simpan</button>
-            <a href="{{ route('admin.finance-entities.capital-contributions.index', $entity) }}" class="btn btn-default">Batal</a>
+            <div class="admin-form-actions">
+                <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Simpan</button>
+                <a href="{{ route('admin.finance-entities.capital-contributions.index', $entity) }}" class="btn btn-default">Batal</a>
+            </div>
         </form>
     @endif
 @endsection

@@ -9,8 +9,10 @@
         <form method="POST" action="{{ route('entity.capital-contributions.store', $entity) }}">
             @csrf
             @include('entity.capital-contributions._form', ['accounts' => $accounts, 'businesses' => $businesses])
-            <button class="btn btn-primary">Simpan</button>
-            <a href="{{ route('entity.capital-contributions.index', $entity) }}" class="btn btn-default">Batal</a>
+            <div class="entity-form-actions">
+                <button class="btn btn-primary">Simpan</button>
+                <a href="{{ route('entity.capital-contributions.index', $entity) }}" class="btn btn-default">Batal</a>
+            </div>
         </form>
     @endif
 @endsection

@@ -7,6 +7,8 @@
         <div class="form-group"><label>Pokok</label><input class="form-control" name="principal_total" value="{{ $debt->principal_total }}" required></div>
         <div class="form-group"><label>Sisa</label><input class="form-control" name="remaining_balance" value="{{ $debt->remaining_balance }}"></div>
         <div class="form-group"><label>Cicilan / bulan</label><input class="form-control" name="monthly_installment" value="{{ $debt->monthly_installment }}"></div>
-        <button class="btn btn-primary">Perbarui</button>
+        <div class="entity-form-actions">
+            <button class="btn btn-primary">Perbarui</button>
+        </div>
     </form>
 @endsection

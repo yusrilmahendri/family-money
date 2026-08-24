@@ -5,7 +5,9 @@
         @csrf
         @method('PUT')
         @include('entity.receivables._form', ['receivable' => $receivable])
-        <button class="btn btn-primary">Simpan</button>
-        <a href="{{ route('entity.receivables.show', [$entity, $receivable]) }}" class="btn btn-default">Batal</a>
+        <div class="entity-form-actions">
+            <button class="btn btn-primary">Simpan</button>
+            <a href="{{ route('entity.receivables.show', [$entity, $receivable]) }}" class="btn btn-default">Batal</a>
+        </div>
     </form>
 @endsection

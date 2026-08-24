@@ -4,6 +4,8 @@
     <form method="POST" action="{{ route('entity.categories.store', $entity) }}">
         @csrf
         <div class="form-group"><label>Nama</label><input class="form-control" name="name" required></div>
-        <button class="btn btn-primary">Simpan</button>
+        <div class="entity-form-actions">
+            <button class="btn btn-primary">Simpan</button>
+        </div>
     </form>
 @endsection

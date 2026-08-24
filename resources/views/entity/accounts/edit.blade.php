@@ -5,7 +5,9 @@
         @csrf
         @method('PUT')
         @include('entity.accounts._form', ['account' => $account])
-        <button class="btn btn-primary">Perbarui</button>
-        <a href="{{ route('entity.accounts.index', $entity) }}" class="btn btn-default">Batal</a>
+        <div class="entity-form-actions">
+            <button class="btn btn-primary">Perbarui</button>
+            <a href="{{ route('entity.accounts.index', $entity) }}" class="btn btn-default">Batal</a>
+        </div>
     </form>
 @endsection

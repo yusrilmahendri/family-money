@@ -5,7 +5,9 @@
     <form method="POST" action="{{ route('entity.receivables.store', $entity) }}">
         @csrf
         @include('entity.receivables._form')
-        <button class="btn btn-primary">Simpan</button>
-        <a href="{{ route('entity.receivables.index', $entity) }}" class="btn btn-default">Batal</a>
+        <div class="entity-form-actions">
+            <button class="btn btn-primary">Simpan</button>
+            <a href="{{ route('entity.receivables.index', $entity) }}" class="btn btn-default">Batal</a>
+        </div>
     </form>
 @endsection

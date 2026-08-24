@@ -37,15 +37,15 @@
         Jumlah anggaran (planned) bukan biaya.
     </p>
     <div class="entity-table-responsive">
-        <table class="table table-bordered entity-table">
+        <table class="table table-bordered entity-table entity-table--stackable">
             <thead><tr><th>Kategori</th><th>Pendapatan</th><th>Biaya</th><th>Laba</th></tr></thead>
             <tbody>
             @forelse($rows as $row)
                 <tr>
-                    <td class="entity-table-text">{{ $row['name'] }}</td>
-                    <td class="entity-money">Rp {{ number_format($row['pendapatan'], 0, ',', '.') }}</td>
-                    <td class="entity-money">Rp {{ number_format($row['biaya'], 0, ',', '.') }}</td>
-                    <td class="entity-money {{ $row['laba'] < 0 ? 'text-danger' : '' }}">Rp {{ number_format($row['laba'], 0, ',', '.') }}</td>
+                    <td data-label="Kategori" class="entity-table-text">{{ $row['name'] }}</td>
+                    <td data-label="Pendapatan" class="entity-money">Rp {{ number_format($row['pendapatan'], 0, ',', '.') }}</td>
+                    <td data-label="Biaya" class="entity-money">Rp {{ number_format($row['biaya'], 0, ',', '.') }}</td>
+                    <td data-label="Laba" class="entity-money {{ $row['laba'] < 0 ? 'text-danger' : '' }}">Rp {{ number_format($row['laba'], 0, ',', '.') }}</td>
                 </tr>
             @empty
                 <tr><td colspan="4" class="entity-table-empty">Belum ada data.</td></tr>

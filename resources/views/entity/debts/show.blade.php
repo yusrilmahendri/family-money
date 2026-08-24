@@ -7,7 +7,9 @@
         <div class="form-group"><label>Jumlah bayar</label><input class="form-control" name="amount" required></div>
         <div class="form-group"><label>Tanggal</label><input type="date" class="form-control" name="paid_on" value="{{ now()->toDateString() }}" required></div>
         @include('entity.accounts._select', ['accounts' => $accounts])
-        <button class="btn btn-primary">Catat pembayaran</button>
+        <div class="entity-form-actions">
+            <button class="btn btn-primary">Catat pembayaran</button>
+        </div>
     </form>
     <h4>Riwayat</h4>
     <div class="entity-table-responsive">

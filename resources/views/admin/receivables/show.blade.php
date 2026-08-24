@@ -19,7 +19,7 @@
 
     @if((float) $receivable->remaining_balance > 0)
         <h4>Terima pembayaran</h4>
-        <form method="POST" action="{{ route('admin.finance-entities.receivables.payments.store', [$entity, $receivable]) }}" style="max-width: 640px;">
+        <form method="POST" action="{{ route('admin.finance-entities.receivables.payments.store', [$entity, $receivable]) }}" class="admin-form">
             @csrf
             @include('entity.accounts._select', ['accounts' => $accounts, 'entity' => $entity])
             <div class="form-group">
@@ -34,7 +34,9 @@
                 <label>Keterangan</label>
                 <input class="form-control" name="description">
             </div>
-            <button class="btn btn-primary">Catat pembayaran</button>
+            <div class="admin-form-actions">
+                <button class="btn btn-primary">Catat pembayaran</button>
+            </div>
         </form>
     @endif
 

@@ -9,8 +9,10 @@
         <form method="POST" action="{{ route('entity.owner-withdrawals.store', $entity) }}">
             @csrf
             @include('entity.owner-withdrawals._form', ['accounts' => $accounts, 'families' => $families])
-            <button class="btn btn-primary">Simpan</button>
-            <a href="{{ route('entity.owner-withdrawals.index', $entity) }}" class="btn btn-default">Batal</a>
+            <div class="entity-form-actions">
+                <button class="btn btn-primary">Simpan</button>
+                <a href="{{ route('entity.owner-withdrawals.index', $entity) }}" class="btn btn-default">Batal</a>
+            </div>
         </form>
     @endif
 @endsection

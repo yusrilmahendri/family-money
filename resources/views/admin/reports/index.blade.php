@@ -37,6 +37,7 @@
     </form>
 
     <h4>FAMILY</h4>
+    <div class="table-responsive">
     <table class="table table-bordered">
         <thead>
             <tr>
@@ -61,8 +62,10 @@
         @endforelse
         </tbody>
     </table>
+    </div>
 
     <h4>BUSINESS</h4>
+    <div class="table-responsive">
     <table class="table table-bordered">
         <thead>
             <tr>
@@ -89,4 +92,5 @@
         @endforelse
         </tbody>
     </table>
+    </div>
 @endsection

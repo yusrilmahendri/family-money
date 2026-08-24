@@ -36,91 +36,41 @@
         </div>
     </div>
 
-    <div class="row entity-stat-grid">
-        <div class="col-lg-3 col-sm-6 col-xs-12">
-            @include('entity.components.stat-card', [
-                'icon' => 'fa-money',
-                'tone' => 'blue',
-                'label' => 'Total Saldo',
-                'value' => $totalSaldo,
-                'hint' => 'Saldo keseluruhan saat ini',
-            ])
-        </div>
+    <div class="entity-stat-grid">
+        @include('entity.components.stat-card', [
+            'icon' => 'fa-money',
+            'tone' => 'blue',
+            'label' => 'Total Saldo',
+            'value' => $totalSaldo,
+            'hint' => 'Saldo keseluruhan saat ini',
+        ])
 
         @if($entity->isFamily())
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-arrow-down', 'tone' => 'green', 'label' => 'Pemasukan', 'value' => $metrics['pemasukan'], 'hint' => 'Pemasukan keluarga, bukan transfer/prive/laba'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-arrow-up', 'tone' => 'red', 'label' => 'Pengeluaran', 'value' => $metrics['pengeluaran'], 'hint' => 'Total pengeluaran'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-calendar', 'tone' => 'purple', 'label' => 'Pengeluaran Bulan Ini', 'value' => $metrics['pengeluaran_bulan_ini'], 'hint' => 'Total pengeluaran bulan ini'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-list', 'tone' => 'yellow', 'label' => 'Transaksi / Hutang / Goal', 'value' => $metrics['jumlah_transaksi'].' / '.$metrics['jumlah_utang'].' / '.$metrics['jumlah_goal'], 'hint' => 'Jumlah catatan'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-briefcase', 'tone' => 'teal', 'label' => 'Modal ke Usaha', 'value' => $metrics['modal_ke_usaha'], 'hint' => 'Penempatan modal'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-user', 'tone' => 'teal', 'label' => 'Prive Diterima', 'value' => $metrics['penerimaan_prive'], 'hint' => 'Penerimaan dari Prive Usaha'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-line-chart', 'tone' => 'pink', 'label' => 'Laba Diterima', 'value' => $metrics['penerimaan_laba'], 'hint' => 'Profit Distribution Received'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-file-text-o', 'tone' => 'blue', 'label' => 'Total Piutang Outstanding', 'value' => $metrics['piutang_outstanding'], 'hint' => 'Sisa piutang'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-clock-o', 'tone' => 'orange', 'label' => 'Piutang Jatuh Tempo', 'value' => $metrics['piutang_jatuh_tempo'], 'hint' => 'Piutang overdue'])
-            </div>
+            @include('entity.components.stat-card', ['icon' => 'fa-arrow-down', 'tone' => 'green', 'label' => 'Pemasukan', 'value' => $metrics['pemasukan'], 'hint' => 'Pemasukan keluarga, bukan transfer/prive/laba'])
+            @include('entity.components.stat-card', ['icon' => 'fa-arrow-up', 'tone' => 'red', 'label' => 'Pengeluaran', 'value' => $metrics['pengeluaran'], 'hint' => 'Total pengeluaran'])
+            @include('entity.components.stat-card', ['icon' => 'fa-calendar', 'tone' => 'purple', 'label' => 'Pengeluaran Bulan Ini', 'value' => $metrics['pengeluaran_bulan_ini'], 'hint' => 'Total pengeluaran bulan ini'])
+            @include('entity.components.stat-card', ['icon' => 'fa-list', 'tone' => 'yellow', 'label' => 'Transaksi / Hutang / Goal', 'value' => $metrics['jumlah_transaksi'].' / '.$metrics['jumlah_utang'].' / '.$metrics['jumlah_goal'], 'hint' => 'Jumlah catatan'])
+            @include('entity.components.stat-card', ['icon' => 'fa-briefcase', 'tone' => 'teal', 'label' => 'Modal ke Usaha', 'value' => $metrics['modal_ke_usaha'], 'hint' => 'Penempatan modal'])
+            @include('entity.components.stat-card', ['icon' => 'fa-user', 'tone' => 'teal', 'label' => 'Prive Diterima', 'value' => $metrics['penerimaan_prive'], 'hint' => 'Penerimaan dari Prive Usaha'])
+            @include('entity.components.stat-card', ['icon' => 'fa-line-chart', 'tone' => 'pink', 'label' => 'Laba Diterima', 'value' => $metrics['penerimaan_laba'], 'hint' => 'Profit Distribution Received'])
+            @include('entity.components.stat-card', ['icon' => 'fa-file-text-o', 'tone' => 'blue', 'label' => 'Total Piutang Outstanding', 'value' => $metrics['piutang_outstanding'], 'hint' => 'Sisa piutang'])
+            @include('entity.components.stat-card', ['icon' => 'fa-clock-o', 'tone' => 'orange', 'label' => 'Piutang Jatuh Tempo', 'value' => $metrics['piutang_jatuh_tempo'], 'hint' => 'Piutang overdue'])
         @else
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-arrow-down', 'tone' => 'green', 'label' => 'Pemasukan', 'value' => $metrics['total_pemasukan'], 'hint' => 'Total revenue'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-arrow-up', 'tone' => 'red', 'label' => 'Biaya operasional', 'value' => $metrics['total_biaya_operasional'], 'hint' => 'Biaya aktual'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-balance-scale', 'tone' => $metrics['laba'] < 0 ? 'red' : 'green', 'label' => 'Laba / Rugi', 'value' => $metrics['laba'], 'hint' => $metrics['laba'] < 0 ? 'Rugi' : 'Laba usaha'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-calendar', 'tone' => 'green', 'label' => 'Pemasukan bulan ini', 'value' => $metrics['pemasukan_bulan_ini'], 'hint' => 'Revenue periode berjalan'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-calendar', 'tone' => 'red', 'label' => 'Biaya bulan ini', 'value' => $metrics['biaya_bulan_ini'], 'hint' => 'Opex periode berjalan'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-line-chart', 'tone' => $metrics['laba_bulan_ini'] < 0 ? 'red' : 'pink', 'label' => 'Laba bulan ini', 'value' => $metrics['laba_bulan_ini'], 'hint' => 'Laba periode berjalan'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-calculator', 'tone' => 'purple', 'label' => 'Anggaran (planned)', 'value' => $metrics['anggaran_planned'], 'hint' => 'Anggaran planned'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-check-square-o', 'tone' => 'purple', 'label' => 'Realisasi anggaran', 'value' => $metrics['anggaran_realized'], 'hint' => 'Realisasi aktual'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-hourglass-half', 'tone' => 'purple', 'label' => 'Sisa anggaran', 'value' => $metrics['anggaran_remaining'], 'hint' => 'Planned dikurangi realisasi'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-briefcase', 'tone' => 'teal', 'label' => 'Total Modal Masuk', 'value' => $metrics['total_modal'], 'hint' => 'Modal diterima'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-user', 'tone' => 'teal', 'label' => 'Prive / Owner Withdrawal', 'value' => $metrics['prive'], 'hint' => 'Prive keluar'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-share', 'tone' => 'pink', 'label' => 'Distributed Profit', 'value' => $metrics['distributed_profit'], 'hint' => 'Laba dibagikan'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-pie-chart', 'tone' => 'pink', 'label' => 'Undistributed Profit', 'value' => $metrics['undistributed_profit'], 'hint' => 'Laba belum dibagikan'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-file-text-o', 'tone' => 'blue', 'label' => 'Total Piutang Outstanding', 'value' => $metrics['piutang_outstanding'], 'hint' => 'Sisa piutang'])
-            </div>
-            <div class="col-lg-3 col-sm-6 col-xs-12">
-                @include('entity.components.stat-card', ['icon' => 'fa-clock-o', 'tone' => 'orange', 'label' => 'Piutang Jatuh Tempo', 'value' => $metrics['piutang_jatuh_tempo'], 'hint' => 'Piutang overdue'])
-            </div>
+            @include('entity.components.stat-card', ['icon' => 'fa-arrow-down', 'tone' => 'green', 'label' => 'Pemasukan', 'value' => $metrics['total_pemasukan'], 'hint' => 'Total revenue'])
+            @include('entity.components.stat-card', ['icon' => 'fa-arrow-up', 'tone' => 'red', 'label' => 'Biaya operasional', 'value' => $metrics['total_biaya_operasional'], 'hint' => 'Biaya aktual'])
+            @include('entity.components.stat-card', ['icon' => 'fa-balance-scale', 'tone' => $metrics['laba'] < 0 ? 'red' : 'green', 'label' => 'Laba / Rugi', 'value' => $metrics['laba'], 'hint' => $metrics['laba'] < 0 ? 'Rugi' : 'Laba usaha'])
+            @include('entity.components.stat-card', ['icon' => 'fa-calendar', 'tone' => 'green', 'label' => 'Pemasukan bulan ini', 'value' => $metrics['pemasukan_bulan_ini'], 'hint' => 'Revenue periode berjalan'])
+            @include('entity.components.stat-card', ['icon' => 'fa-calendar', 'tone' => 'red', 'label' => 'Biaya bulan ini', 'value' => $metrics['biaya_bulan_ini'], 'hint' => 'Opex periode berjalan'])
+            @include('entity.components.stat-card', ['icon' => 'fa-line-chart', 'tone' => $metrics['laba_bulan_ini'] < 0 ? 'red' : 'pink', 'label' => 'Laba bulan ini', 'value' => $metrics['laba_bulan_ini'], 'hint' => 'Laba periode berjalan'])
+            @include('entity.components.stat-card', ['icon' => 'fa-calculator', 'tone' => 'purple', 'label' => 'Anggaran (planned)', 'value' => $metrics['anggaran_planned'], 'hint' => 'Anggaran planned'])
+            @include('entity.components.stat-card', ['icon' => 'fa-check-square-o', 'tone' => 'purple', 'label' => 'Realisasi anggaran', 'value' => $metrics['anggaran_realized'], 'hint' => 'Realisasi aktual'])
+            @include('entity.components.stat-card', ['icon' => 'fa-hourglass-half', 'tone' => 'purple', 'label' => 'Sisa anggaran', 'value' => $metrics['anggaran_remaining'], 'hint' => 'Planned dikurangi realisasi'])
+            @include('entity.components.stat-card', ['icon' => 'fa-briefcase', 'tone' => 'teal', 'label' => 'Total Modal Masuk', 'value' => $metrics['total_modal'], 'hint' => 'Modal diterima'])
+            @include('entity.components.stat-card', ['icon' => 'fa-user', 'tone' => 'teal', 'label' => 'Prive / Owner Withdrawal', 'value' => $metrics['prive'], 'hint' => 'Prive keluar'])
+            @include('entity.components.stat-card', ['icon' => 'fa-share', 'tone' => 'pink', 'label' => 'Distributed Profit', 'value' => $metrics['distributed_profit'], 'hint' => 'Laba dibagikan'])
+            @include('entity.components.stat-card', ['icon' => 'fa-pie-chart', 'tone' => 'pink', 'label' => 'Undistributed Profit', 'value' => $metrics['undistributed_profit'], 'hint' => 'Laba belum dibagikan'])
+            @include('entity.components.stat-card', ['icon' => 'fa-file-text-o', 'tone' => 'blue', 'label' => 'Total Piutang Outstanding', 'value' => $metrics['piutang_outstanding'], 'hint' => 'Sisa piutang'])
+            @include('entity.components.stat-card', ['icon' => 'fa-clock-o', 'tone' => 'orange', 'label' => 'Piutang Jatuh Tempo', 'value' => $metrics['piutang_jatuh_tempo'], 'hint' => 'Piutang overdue'])
         @endif
     </div>
 

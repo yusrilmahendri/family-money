@@ -56,13 +56,52 @@ class EntitySavingsGoalController extends Controller
     public function show(FinanceEntity $financeEntity, SavingsGoal $savings_goal): View
     {
         $this->owned($financeEntity, $savings_goal);
-        $savings_goal->load(['contributions' => fn ($q) => $q->with('financeAccount')->orderByDesc('contributed_on')]);
+
+        $chrono = $savings_goal->contributions()
+            ->with('financeAccount')
+            ->orderBy('contributed_on')
+            ->orderBy('id')
+            ->get();
+
+        $targetAmount = (float) $savings_goal->target_amount;
+        $totalCollected = (float) $chrono->sum('amount');
+        $remainingAmount = max(0.0, $targetAmount - $totalCollected);
+        $excessAmount = max(0.0, $totalCollected - $targetAmount);
+        $percentage = $targetAmount > 0.0
+            ? round(($totalCollected / $targetAmount) * 100, 1)
+            : 0.0;
+        $progressVisual = min($percentage, 100.0);
+
+        $running = 0.0;
+        $contributions = $chrono
+            ->map(function ($contribution) use (&$running) {
+                $running += (float) $contribution->amount;
+
+                return [
+                    'id' => $contribution->id,
+                    'date_label' => $contribution->contributed_on?->copy()->locale('id')->translatedFormat('d M Y') ?: '—',
+                    'account_name' => $contribution->financeAccount?->name ?: 'Rekening tidak tersedia',
+                    'amount' => (float) $contribution->amount,
+                    'cumulative' => $running,
+                ];
+            })
+            ->reverse()
+            ->values();
 
         return view('entity.savings-goals.show', [
             'entity' => $financeEntity,
             'goal' => $savings_goal,
             'accounts' => $financeEntity->activeAccounts()->get(),
             'title' => $savings_goal->title,
+            'targetAmount' => $targetAmount,
+            'totalCollected' => $totalCollected,
+            'remainingAmount' => $remainingAmount,
+            'excessAmount' => $excessAmount,
+            'percentage' => $percentage,
+            'progressVisual' => $progressVisual,
+            'isAchieved' => $percentage >= 100.0,
+            'contributionCount' => $chrono->count(),
+            'contributions' => $contributions,
         ]);
     }
 
@@ -110,7 +149,7 @@ class EntitySavingsGoalController extends Controller
     {
         $this->owned($financeEntity, $savings_goal);
         $validated = $request->validate([
-            'amount' => ['required', 'string'],
+            'amount' => $this->positiveRupiahRules(),
             'contributed_on' => ['required', 'date'],
             ...$this->financeAccountRules($financeEntity),
         ]);
@@ -122,7 +161,8 @@ class EntitySavingsGoalController extends Controller
         ]);
         $this->auditLogs()->recordCreated($contribution, $financeEntity);
 
-        return redirect()->route('entity.savings-goals.show', [$financeEntity, $savings_goal])->with('success', 'Setoran dicatat.');
+        return redirect()->route('entity.savings-goals.show', [$financeEntity, $savings_goal])
+            ->with('success', 'Setoran tabungan berhasil dicatat.');
     }
 
     private function owned(FinanceEntity $entity, SavingsGoal $goal): void

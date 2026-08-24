@@ -14,6 +14,8 @@
         </div>
         <div class="form-group"><label>Mulai</label><input type="date" class="form-control" name="start_date" value="{{ $recurring->start_date?->toDateString() }}" required></div>
         @include('entity.accounts._select', ['accounts' => $accounts, 'selectedAccountId' => $recurring->finance_account_id])
-        <button class="btn btn-primary">Perbarui</button>
+        <div class="entity-form-actions">
+            <button class="btn btn-primary">Perbarui</button>
+        </div>
     </form>
 @endsection
