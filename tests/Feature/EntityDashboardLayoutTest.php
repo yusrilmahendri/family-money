@@ -19,6 +19,15 @@ function dashboardKpiMarkup(string $html): string
     return $matches[1] ?? '';
 }
 
+it('keeps dashboard summary cards on a 4 / 2 / 1 column grid', function () {
+    $css = file_get_contents(public_path('css/entity.css'));
+
+    expect($css)->toMatch('/\.entity-stat-grid\s*\{[^}]*repeat\(4, minmax\(0, 1fr\)\)/s')
+        ->and($css)->toMatch('/@media \(max-width: 1199\.98px\)\s*\{\s*\.entity-stat-grid\s*\{[^}]*repeat\(2, minmax\(0, 1fr\)\)/s')
+        ->and($css)->toMatch('/@media \(max-width: 767\.98px\)[\s\S]*?\.entity-stat-grid\s*\{[^}]*minmax\(0, 1fr\)/s')
+        ->and($css)->not->toMatch('/@media \(max-width: 1199\.98px\)\s*\{\s*\.entity-stat-grid\s*\{[^}]*repeat\(3,/s');
+});
+
 it('renders FAMILY and BUSINESS kpi cards as siblings in one auto-flow grid above insight', function () {
     $family = FinanceEntity::factory()->family()->create(['name' => 'Keluarga Layout']);
     $business = FinanceEntity::factory()->business()->create(['name' => 'Usaha Layout']);
