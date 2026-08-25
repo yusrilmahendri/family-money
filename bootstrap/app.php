@@ -1,5 +1,9 @@
 <?php
 
+// Composer "files" autoload is not regenerated on production git pull.
+// Load helpers here so rupiah() exists even with a stale autoload_files.php.
+require_once __DIR__.'/../app/helpers.php';
+
 use App\Http\Middleware\EnsureFinanceEntityAccess;
 use App\Http\Middleware\EnsureFinanceEntityType;
 use App\Http\Middleware\EnsureUserIsAdmin;

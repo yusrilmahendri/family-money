@@ -18,6 +18,8 @@ it('formats display values with a space after Rp', function () {
         ->and(Rupiah::format(200_000_000))->toBe('Rp 200.000.000')
         ->and(Rupiah::format(0))->toBe('Rp 0')
         ->and(Rupiah::format(-1_000_000))->toBe('-Rp 1.000.000')
+        ->and(Rupiah::format(null))->toBe('Rp 0')
+        ->and(Rupiah::format('22500000.00'))->toBe('Rp 22.500.000')
         ->and(rupiah(22_500_000))->toBe('Rp 22.500.000');
 });
 
