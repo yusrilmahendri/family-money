@@ -28,6 +28,27 @@ it('keeps dashboard summary cards on a 4 / 2 / 1 column grid', function () {
         ->and($css)->not->toMatch('/@media \(max-width: 1199\.98px\)\s*\{\s*\.entity-stat-grid\s*\{[^}]*repeat\(3,/s');
 });
 
+it('keeps the shared entity topbar sticky above the fixed sidebar', function () {
+    $css = file_get_contents(public_path('css/entity.css'));
+
+    expect($css)->toMatch('/\.entity-topbar\s*\{[^}]*position:\s*sticky/s')
+        ->and($css)->toMatch('/\.entity-topbar\s*\{[^}]*top:\s*0/s')
+        ->and($css)->toMatch('/\.entity-topbar\s*\{[^}]*z-index:\s*1030/s')
+        ->and($css)->toMatch('/\.entity-sidebar\s*\{[^}]*position:\s*fixed/s')
+        ->and($css)->toMatch('/\.entity-sidebar\s*\{[^}]*top:\s*var\(--entity-topbar-height\)/s')
+        ->and($css)->not->toMatch('/\.entity-app\s*\{[^}]*overflow-x:\s*hidden/s')
+        ->and($css)->toMatch('/\.entity-main\s*\{[^}]*overflow-x:\s*hidden/s');
+
+    $family = FinanceEntity::factory()->family()->create(['name' => 'Keluarga Sticky']);
+    grantDashboardAccess($family);
+
+    $this->get(route('entity.dashboard', $family))
+        ->assertOk()
+        ->assertSee('entity-topbar', false)
+        ->assertSee('entity-sidebar', false)
+        ->assertSee('entity-main', false);
+});
+
 it('renders FAMILY and BUSINESS kpi cards as siblings in one auto-flow grid above insight', function () {
     $family = FinanceEntity::factory()->family()->create(['name' => 'Keluarga Layout']);
     $business = FinanceEntity::factory()->business()->create(['name' => 'Usaha Layout']);
