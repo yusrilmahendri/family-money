@@ -11,7 +11,7 @@
                     <td data-label="Tanggal">{{ $trx->transaction_date?->format('Y-m-d') }}</td>
                     <td data-label="Deskripsi" class="entity-table-text">{{ $trx->description }}</td>
                     <td data-label="Kas / Rekening">{{ $trx->financeAccount?->name ?? '—' }}</td>
-                    <td data-label="Jumlah" class="entity-money">Rp {{ number_format($trx->amount, 0, ',', '.') }}</td>
+                    <td data-label="Jumlah" class="entity-money">{{ rupiah($trx->amount) }}</td>
                     <td data-label="Aksi">
                         <div class="entity-table-actions">
                             <a href="{{ route('entity.transactions.edit', [$entity, $trx]) }}" class="btn btn-default btn-xs">Edit</a>

@@ -2,23 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
-use Yajra\DataTables\Facades\DataTables;
-use App\Models\Saldo;
+use App\Exports\SaldoExport;
+use App\Models\Budget;
 use App\Models\Category;
 use App\Models\Income;
-use App\Models\Budget;
-use App\Models\Transaction;
-use App\Exports\SaldoExport;
+use App\Models\Saldo;
 use App\Services\SaldoGlobalService;
-use Maatwebsite\Excel\Facades\Excel;
+use App\Support\Rupiah;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Facades\Excel;
+use Yajra\DataTables\Facades\DataTables;
 
 class SaldoController extends Controller
 {
-
     public function data()
     {
         $saldo = Saldo::orderBy('periode_saldo', 'desc');
@@ -26,21 +25,23 @@ class SaldoController extends Controller
         return DataTables::of($saldo)
             ->addColumn('category', function ($model) {
                 $name = $model->category ? $model->category->name : '-';
-                if (!empty($model->income_id)) {
+                if (! empty($model->income_id)) {
                     $name .= ' <span class="label label-info" style="font-size:10px;">AUTO</span>';
                 }
+
                 return $name;
             })
             ->addColumn('amount', function ($model) {
-                return 'Rp ' . number_format($model->amount, 0, ',', '.');
+                return Rupiah::format($model->amount);
             })
             ->addColumn('description', function ($model) {
                 return $model->description ?: '-';
             })
             ->addColumn('nota_image', function ($model) {
-                if (!empty($model->nota_image)) {
-                    $url = asset('storage/' . $model->nota_image);
-                    return '<a href="' . $url . '" target="_blank"><img src="' . $url . '" alt="Nota" style="max-width:60px;max-height:60px;"></a>';
+                if (! empty($model->nota_image)) {
+                    $url = asset('storage/'.$model->nota_image);
+
+                    return '<a href="'.$url.'" target="_blank"><img src="'.$url.'" alt="Nota" style="max-width:60px;max-height:60px;"></a>';
                 } else {
                     return '-';
                 }
@@ -50,7 +51,7 @@ class SaldoController extends Controller
             })
             ->addColumn('action', 'saldo.action')
             ->addIndexColumn()
-            ->rawColumns(['action','nota_image','category'])
+            ->rawColumns(['action', 'nota_image', 'category'])
             ->toJson();
     }
 
@@ -70,36 +71,36 @@ class SaldoController extends Controller
         $totalSaldoManual = $hasIncomeIdColumn
             ? (float) Saldo::whereNull('income_id')->sum('amount')
             : (float) Saldo::sum('amount');
-        $totalPemasukan   = $hasIncomeIdColumn
+        $totalPemasukan = $hasIncomeIdColumn
             ? (float) Saldo::whereNotNull('income_id')->sum('amount')
             : 0;
 
         // Saldo global event-based (sumber kebenaran tunggal, sama dgn Dashboard & Anggaran).
-        $breakdown        = $saldoGlobal->getBreakdown();
-        $totalDana        = $breakdown['income'];        // total uang masuk
-        $totalTransaksi   = $breakdown['transactions'];
-        $totalBiaya       = $breakdown['operational'];
-        $sisaSaldoGlobal  = $breakdown['saldo'];         // income - cashout
+        $breakdown = $saldoGlobal->getBreakdown();
+        $totalDana = $breakdown['income'];        // total uang masuk
+        $totalTransaksi = $breakdown['transactions'];
+        $totalBiaya = $breakdown['operational'];
+        $sisaSaldoGlobal = $breakdown['saldo'];         // income - cashout
         $totalDianggarkan = (float) Budget::sum('amount');
-        $belumRealisasi   = max(0, $totalDianggarkan - $totalBiaya);
-        $saldoBebas       = $sisaSaldoGlobal - $belumRealisasi;
+        $belumRealisasi = max(0, $totalDianggarkan - $totalBiaya);
+        $saldoBebas = $sisaSaldoGlobal - $belumRealisasi;
 
         return view('saldo.index', [
-            'Transaksi'          => Saldo::all(),
-            'total_saldo'        => $totalDana,
+            'Transaksi' => Saldo::all(),
+            'total_saldo' => $totalDana,
             'total_saldo_manual' => $totalSaldoManual,
-            'total_pemasukan'    => $totalPemasukan,
-            'total_dana'         => $totalDana,
-            'total_dianggarkan'  => $totalDianggarkan,
-            'total_transaksi'    => $totalTransaksi,
-            'total_biaya'        => $totalBiaya,
-            'saldo_bebas'        => $saldoBebas,
-            'sisa_saldo_global'  => $sisaSaldoGlobal,
-            'saldo_keluar'       => $breakdown['cash_out'],
-            'saldo_breakdown'    => $breakdown,
-            'updated_saldo'      => $updated_saldo,
-            'title'              => 'Saldo List',
-            'categories'         => Category::all(),
+            'total_pemasukan' => $totalPemasukan,
+            'total_dana' => $totalDana,
+            'total_dianggarkan' => $totalDianggarkan,
+            'total_transaksi' => $totalTransaksi,
+            'total_biaya' => $totalBiaya,
+            'saldo_bebas' => $saldoBebas,
+            'sisa_saldo_global' => $sisaSaldoGlobal,
+            'saldo_keluar' => $breakdown['cash_out'],
+            'saldo_breakdown' => $breakdown,
+            'updated_saldo' => $updated_saldo,
+            'title' => 'Saldo List',
+            'categories' => Category::all(),
         ]);
     }
 
@@ -134,18 +135,13 @@ class SaldoController extends Controller
             'category_id' => $validatedData['category_id'],
             'nota_image' => $request->file('nota_image') ? $request->file('nota_image')->store('nota', 'public') : null,
         ]);
+
         return redirect()->route('saldos.index')->with('success', 'Saldo berhasil ditambahkan!');
     }
 
     private function cleanRupiah($rupiah)
     {
-        // Hapus "Rp", spasi, dan titik
-        $clean = str_replace(['Rp', ' ', '.'], '', $rupiah);
-
-        // Ubah koma menjadi titik jika ada
-        $clean = str_replace(',', '.', $clean);
-
-        return (float) $clean;
+        return Rupiah::toFloat($rupiah);
     }
 
     /**
@@ -166,7 +162,7 @@ class SaldoController extends Controller
     {
         $saldo = Saldo::findOrFail($id);
 
-        if (!empty($saldo->income_id)) {
+        if (! empty($saldo->income_id)) {
             return redirect()->route('incomes.edit', $saldo->income_id)
                 ->with('info', 'Saldo ini berasal dari Pemasukan Usaha. Silakan edit dari halaman Pemasukan.');
         }
@@ -181,46 +177,46 @@ class SaldoController extends Controller
     /**
      * Update the specified resource in storage.
      */
-   public function update(Request $request, string $id)
-{
-    $validatedData = $request->validate([
-        'amount'        => 'required',
-        'description'   => 'required|max:255',
-        'periode_saldo' => 'required|date',
-        'category_id'   => 'required',
-        'nota_image'    => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-    ]);
+    public function update(Request $request, string $id)
+    {
+        $validatedData = $request->validate([
+            'amount' => 'required',
+            'description' => 'required|max:255',
+            'periode_saldo' => 'required|date',
+            'category_id' => 'required',
+            'nota_image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+        ]);
 
-    $saldo = Saldo::findOrFail($id);
+        $saldo = Saldo::findOrFail($id);
 
-    // Default pakai file lama
-    $notaImagePath = $saldo->nota_image;
+        // Default pakai file lama
+        $notaImagePath = $saldo->nota_image;
 
-    // Jika upload baru
-    if ($request->hasFile('nota_image')) {
+        // Jika upload baru
+        if ($request->hasFile('nota_image')) {
 
-        // Hapus file lama jika ada
-        if ($saldo->nota_image && Storage::disk('public')->exists($saldo->nota_image)) {
-            Storage::disk('public')->delete($saldo->nota_image);
+            // Hapus file lama jika ada
+            if ($saldo->nota_image && Storage::disk('public')->exists($saldo->nota_image)) {
+                Storage::disk('public')->delete($saldo->nota_image);
+            }
+
+            // Simpan file baru
+            $notaImagePath = $request->file('nota_image')
+                ->store('nota', 'public');
         }
 
-        // Simpan file baru
-        $notaImagePath = $request->file('nota_image')
-            ->store('nota', 'public');
+        $saldo->update([
+            'amount' => $this->cleanRupiah($validatedData['amount']),
+            'description' => $validatedData['description'],
+            'periode_saldo' => $validatedData['periode_saldo'],
+            'category_id' => $validatedData['category_id'],
+            'nota_image' => $notaImagePath,
+        ]);
+
+        return redirect()
+            ->route('saldos.index')
+            ->with('info', 'Saldo berhasil diperbarui!');
     }
-
-    $saldo->update([
-        'amount'        => $this->cleanRupiah($validatedData['amount']),
-        'description'   => $validatedData['description'],
-        'periode_saldo' => $validatedData['periode_saldo'],
-        'category_id'   => $validatedData['category_id'],
-        'nota_image'    => $notaImagePath,
-    ]);
-
-    return redirect()
-        ->route('saldos.index')
-        ->with('info', 'Saldo berhasil diperbarui!');
-}
 
     /**
      * Get total saldo by category
@@ -231,7 +227,7 @@ class SaldoController extends Controller
 
         return response()->json([
             'total' => $total,
-            'category_id' => $categoryId
+            'category_id' => $categoryId,
         ]);
     }
 
@@ -255,7 +251,7 @@ class SaldoController extends Controller
         return response()->json([
             'total' => $total,
             'month' => $request->month,
-            'year' => $request->year
+            'year' => $request->year,
         ]);
     }
 
@@ -264,7 +260,7 @@ class SaldoController extends Controller
      */
     public function exportExcel()
     {
-        return Excel::download(new SaldoExport, 'data-saldo-' . date('Y-m-d') . '.xlsx');
+        return Excel::download(new SaldoExport, 'data-saldo-'.date('Y-m-d').'.xlsx');
     }
 
     /**
@@ -280,7 +276,7 @@ class SaldoController extends Controller
             'totalSaldo' => $totalSaldo,
         ]);
 
-        return $pdf->download('data-saldo-' . date('Y-m-d') . '.pdf');
+        return $pdf->download('data-saldo-'.date('Y-m-d').'.pdf');
     }
 
     /**
@@ -290,12 +286,13 @@ class SaldoController extends Controller
     {
         $saldo = Saldo::findOrFail($id);
 
-        if (!empty($saldo->income_id)) {
+        if (! empty($saldo->income_id)) {
             return redirect()->route('saldos.index')
                 ->with('danger', 'Saldo ini berasal dari Pemasukan Usaha. Hapus dari halaman Pemasukan Usaha agar konsisten.');
         }
 
         $saldo->delete();
+
         return redirect()->route('saldos.index')
             ->with('danger', 'Data Saldo Berhasil dihapuskan');
     }

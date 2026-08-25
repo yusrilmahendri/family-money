@@ -25,7 +25,7 @@
                     <td data-label="Sumber" class="entity-table-text">{{ $income->source }}</td>
                     <td data-label="Kategori">{{ $income->category?->name ?: '—' }}</td>
                     <td data-label="Masuk ke Rekening">{{ $income->financeAccount?->name ?? '—' }}</td>
-                    <td data-label="Jumlah" class="entity-money">Rp {{ number_format($income->amount, 0, ',', '.') }}</td>
+                    <td data-label="Jumlah" class="entity-money">{{ rupiah($income->amount) }}</td>
                     <td data-label="Aksi">
                         <div class="entity-table-actions">
                             <a href="{{ route('entity.incomes.edit', [$entity, $income]) }}" class="btn btn-default btn-xs">Edit</a>

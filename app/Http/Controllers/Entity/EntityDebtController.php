@@ -9,9 +9,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Entity\Concerns\ParsesRupiah;
 use App\Models\Debt;
 use App\Models\FinanceEntity;
+use App\Support\Rupiah;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class EntityDebtController extends Controller
@@ -39,7 +41,7 @@ class EntityDebtController extends Controller
     {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'principal_total' => ['required', 'string'],
+            'principal_total' => $this->positiveRupiahRules(),
             'remaining_balance' => ['nullable', 'string'],
             'monthly_installment' => ['nullable', 'string'],
             'due_day' => ['nullable', 'integer', 'min:1', 'max:31'],
@@ -70,13 +72,36 @@ class EntityDebtController extends Controller
     public function show(FinanceEntity $financeEntity, Debt $debt): View
     {
         $this->owned($financeEntity, $debt);
-        $debt->load(['payments' => fn ($q) => $q->with('financeAccount')->orderByDesc('paid_on')]);
+
+        $payments = $debt->payments()
+            ->with('financeAccount')
+            ->orderByDesc('paid_on')
+            ->orderByDesc('id')
+            ->get();
+
+        $principalTotal = (float) $debt->principal_total;
+        $remainingAmount = $debt->remainingAmount();
+        $totalPaid = $debt->totalPaid();
+        $percentage = $debt->paymentProgressPercentage();
+        $isPaidOff = $debt->isPaidOff();
 
         return view('entity.debts.show', [
             'entity' => $financeEntity,
             'debt' => $debt,
-            'accounts' => $financeEntity->activeAccounts()->get(),
+            'accounts' => $isPaidOff ? collect() : $financeEntity->activeAccounts()->get(),
             'title' => $debt->title,
+            'principalTotal' => $principalTotal,
+            'remainingAmount' => $remainingAmount,
+            'totalPaid' => $totalPaid,
+            'percentage' => $percentage,
+            'progressVisual' => min($percentage, 100.0),
+            'isPaidOff' => $isPaidOff,
+            'paymentCount' => $payments->count(),
+            'payments' => $payments->map(fn ($payment) => [
+                'date_label' => $payment->paid_on?->copy()->locale('id')->translatedFormat('d M Y') ?: '—',
+                'account_name' => $payment->financeAccount?->name ?: 'Rekening tidak tersedia',
+                'amount' => (float) $payment->amount,
+            ]),
         ]);
     }
 
@@ -96,7 +121,7 @@ class EntityDebtController extends Controller
         $this->owned($financeEntity, $debt);
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'principal_total' => ['required', 'string'],
+            'principal_total' => $this->positiveRupiahRules(),
             'remaining_balance' => ['nullable', 'string'],
             'monthly_installment' => ['nullable', 'string'],
             'due_day' => ['nullable', 'integer', 'min:1', 'max:31'],
@@ -134,7 +159,7 @@ class EntityDebtController extends Controller
     {
         $this->owned($financeEntity, $debt);
         $validated = $request->validate([
-            'amount' => ['required', 'string'],
+            'amount' => $this->positiveRupiahRules(),
             'paid_on' => ['required', 'date'],
             'notes' => ['nullable', 'string', 'max:255'],
             ...$this->financeAccountRules($financeEntity),
@@ -142,14 +167,34 @@ class EntityDebtController extends Controller
 
         $amount = $this->parseRupiah($validated['amount']);
         DB::transaction(function () use ($validated, $financeEntity, $debt, $amount): void {
-            $payment = $debt->payments()->create([
+            $locked = Debt::query()
+                ->whereKey($debt->id)
+                ->where('finance_entity_id', $financeEntity->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $remaining = $locked->remainingAmount();
+
+            if ($remaining <= 0.0) {
+                throw ValidationException::withMessages([
+                    'amount' => 'Hutang ini sudah lunas.',
+                ]);
+            }
+
+            if ($amount > $remaining) {
+                throw ValidationException::withMessages([
+                    'amount' => 'Jumlah pembayaran tidak boleh melebihi sisa hutang. Sisa hutang hanya '.Rupiah::format($remaining).'.',
+                ]);
+            }
+
+            $payment = $locked->payments()->create([
                 'finance_account_id' => $this->resolvedAccountId($validated, $financeEntity),
                 'amount' => $amount,
                 'paid_on' => $validated['paid_on'],
                 'notes' => $validated['notes'] ?? null,
             ]);
-            $debt->update([
-                'remaining_balance' => max(0, (float) $debt->remaining_balance - $amount),
+            $locked->update([
+                'remaining_balance' => max(0, $remaining - $amount),
             ]);
             $this->auditLogs()->record($payment, AuditAction::PAYMENT, $financeEntity);
         });

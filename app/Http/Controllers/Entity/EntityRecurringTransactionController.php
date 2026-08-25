@@ -79,7 +79,7 @@ class EntityRecurringTransactionController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'amount' => ['required', 'string'],
+            'amount' => $this->positiveRupiahRules(),
             'category_id' => ['nullable', Rule::exists('categories', 'id')->where('finance_entity_id', $entity->id)],
             'frequency' => ['required', 'in:daily,weekly,monthly,yearly'],
             'day_of_month' => ['nullable', 'integer', 'min:1', 'max:31'],

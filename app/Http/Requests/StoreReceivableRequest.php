@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\Rupiah;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreReceivableRequest extends FormRequest
@@ -55,8 +56,6 @@ class StoreReceivableRequest extends FormRequest
 
     public function parsedAmount(string $field): float
     {
-        $digits = preg_replace('/\D/', '', (string) $this->input($field));
-
-        return (float) ($digits === '' ? 0 : $digits);
+        return Rupiah::toFloat($this->input($field));
     }
 }

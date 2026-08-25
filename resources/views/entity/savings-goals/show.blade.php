@@ -1,7 +1,7 @@
 @extends('entity.layout')
 @section('content')
     @php
-        $money = fn ($amount) => 'Rp '.number_format((float) $amount, 0, ',', '.');
+        $money = fn ($amount) => rupiah($amount);
         $percentageLabel = fmod((float) $percentage, 1.0) === 0.0
             ? (string) (int) $percentage
             : rtrim(rtrim(number_format((float) $percentage, 1, ',', ''), '0'), ',');
@@ -57,7 +57,7 @@
         @csrf
         <div class="form-group">
             <label for="amount">Jumlah setor</label>
-            <input id="amount" class="form-control js-rupiah" name="amount" inputmode="numeric" autocomplete="off" placeholder="Rp 1.000.000" required>
+            <x-rupiah-input name="amount" :value="old('amount')" required />
         </div>
         <div class="form-group">
             <label for="contributed_on">Tanggal</label>
@@ -104,7 +104,3 @@
         @endif
     </div>
 @endsection
-
-@push('scripts')
-    @include('entity.partials.rupiah_input')
-@endpush

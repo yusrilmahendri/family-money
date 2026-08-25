@@ -9,7 +9,7 @@
             @forelse($debts as $debt)
                 <tr>
                     <td data-label="Judul" class="entity-table-text">{{ $debt->title }}</td>
-                    <td data-label="Sisa" class="entity-money">Rp {{ number_format($debt->remaining_balance, 0, ',', '.') }}</td>
+                    <td data-label="Sisa" class="entity-money">{{ rupiah($debt->remaining_balance) }}</td>
                     <td data-label="Aksi">
                         <div class="entity-table-actions">
                             <a href="{{ route('entity.debts.show', [$entity, $debt]) }}" class="btn btn-default btn-xs">Detail</a>

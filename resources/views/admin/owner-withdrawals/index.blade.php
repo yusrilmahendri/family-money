@@ -34,7 +34,7 @@
                         <td>{{ $withdrawal->transaction_date?->format('Y-m-d') }}</td>
                         <td>{{ $withdrawal->businessEntity?->name }} / {{ $withdrawal->sourceAccount?->name }}</td>
                         <td>{{ $withdrawal->familyEntity?->name }} / {{ $withdrawal->destinationAccount?->name }}</td>
-                        <td>Rp {{ number_format($withdrawal->amount, 0, ',', '.') }}</td>
+                        <td>{{ rupiah($withdrawal->amount) }}</td>
                         <td>{{ $withdrawal->description ?: '—' }}</td>
                     </tr>
                 @empty

@@ -112,6 +112,7 @@
             });
         });
     </script>
+    <script src="{{ asset('js/rupiah-input.js') }}"></script>
     @stack('scripts')
 </body>
 </html>

@@ -11,7 +11,3 @@
         </div>
     </form>
 @endsection
-
-@push('scripts')
-    @include('entity.partials.rupiah_input')
-@endpush

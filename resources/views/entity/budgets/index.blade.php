@@ -21,10 +21,10 @@
                 <tr>
                     <td data-label="Periode">{{ $budget->periode?->format('Y-m') }}</td>
                     <td data-label="Kategori" class="entity-table-text">{{ $budget->category?->name }}</td>
-                    <td data-label="Planned" class="entity-money">Rp {{ number_format($budget->plannedAmount(), 0, ',', '.') }}</td>
-                    <td data-label="Realized" class="entity-money">Rp {{ number_format($budget->realizedAmount(), 0, ',', '.') }}</td>
-                    <td data-label="Remaining" class="entity-money">Rp {{ number_format($budget->remainingAmount(), 0, ',', '.') }}</td>
-                    <td data-label="Variance" class="entity-money">Rp {{ number_format($budget->varianceAmount(), 0, ',', '.') }}</td>
+                    <td data-label="Planned" class="entity-money">{{ rupiah($budget->plannedAmount()) }}</td>
+                    <td data-label="Realized" class="entity-money">{{ rupiah($budget->realizedAmount()) }}</td>
+                    <td data-label="Remaining" class="entity-money">{{ rupiah($budget->remainingAmount()) }}</td>
+                    <td data-label="Variance" class="entity-money">{{ rupiah($budget->varianceAmount()) }}</td>
                     <td data-label="Aksi">
                         <div class="entity-table-actions">
                             <a href="{{ route('entity.budgets.show', [$entity, $budget]) }}" class="btn btn-default btn-xs">Detail</a>

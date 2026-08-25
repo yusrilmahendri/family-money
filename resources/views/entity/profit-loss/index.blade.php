@@ -17,18 +17,18 @@
     </form>
 
     <p>Periode: {{ $periodLabel }}</p>
-    <p>Pemasukan: Rp {{ number_format($incomeTotal, 0, ',', '.') }}</p>
-    <p>Biaya operasional: Rp {{ number_format($expenseTotal, 0, ',', '.') }}</p>
+    <p>Pemasukan: {{ rupiah($incomeTotal) }}</p>
+    <p>Biaya operasional: {{ rupiah($expenseTotal) }}</p>
     @if($isLoss)
-        <p class="text-danger"><strong>Rugi: Rp {{ number_format(abs($profit), 0, ',', '.') }}</strong></p>
-        <p class="text-danger">Laba: Rp {{ number_format($profit, 0, ',', '.') }}</p>
+        <p class="text-danger"><strong>Rugi: {{ rupiah(abs($profit)) }}</strong></p>
+        <p class="text-danger">Laba: {{ rupiah($profit) }}</p>
     @else
-        <p><strong>Laba: Rp {{ number_format($profit, 0, ',', '.') }}</strong></p>
+        <p><strong>Laba: {{ rupiah($profit) }}</strong></p>
     @endif
-    <p>Modal masuk: Rp {{ number_format($capitalTotal, 0, ',', '.') }}</p>
-    <p>Prive: Rp {{ number_format($withdrawalTotal, 0, ',', '.') }}</p>
-    <p>Distributed Profit: Rp {{ number_format($distributedProfit, 0, ',', '.') }}</p>
-    <p>Undistributed Profit: Rp {{ number_format($undistributedProfit, 0, ',', '.') }}</p>
+    <p>Modal masuk: {{ rupiah($capitalTotal) }}</p>
+    <p>Prive: {{ rupiah($withdrawalTotal) }}</p>
+    <p>Distributed Profit: {{ rupiah($distributedProfit) }}</p>
+    <p>Undistributed Profit: {{ rupiah($undistributedProfit) }}</p>
     <p class="text-muted">
         Laba = pemasukan − biaya operasional yang sudah terjadi.
         Modal, prive, dan pembagian laba bukan revenue/expense dan tidak masuk laba.
@@ -43,9 +43,9 @@
             @forelse($rows as $row)
                 <tr>
                     <td data-label="Kategori" class="entity-table-text">{{ $row['name'] }}</td>
-                    <td data-label="Pendapatan" class="entity-money">Rp {{ number_format($row['pendapatan'], 0, ',', '.') }}</td>
-                    <td data-label="Biaya" class="entity-money">Rp {{ number_format($row['biaya'], 0, ',', '.') }}</td>
-                    <td data-label="Laba" class="entity-money {{ $row['laba'] < 0 ? 'text-danger' : '' }}">Rp {{ number_format($row['laba'], 0, ',', '.') }}</td>
+                    <td data-label="Pendapatan" class="entity-money">{{ rupiah($row['pendapatan']) }}</td>
+                    <td data-label="Biaya" class="entity-money">{{ rupiah($row['biaya']) }}</td>
+                    <td data-label="Laba" class="entity-money {{ $row['laba'] < 0 ? 'text-danger' : '' }}">{{ rupiah($row['laba']) }}</td>
                 </tr>
             @empty
                 <tr><td colspan="4" class="entity-table-empty">Belum ada data.</td></tr>

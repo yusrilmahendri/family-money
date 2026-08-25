@@ -5,6 +5,7 @@ namespace App\Http\Requests\Concerns;
 use App\Enums\FinanceAccountType;
 use App\Models\FinanceAccount;
 use App\Models\FinanceEntity;
+use App\Support\Rupiah;
 use Illuminate\Validation\Rule;
 
 trait ValidatesFinanceAccount
@@ -53,10 +54,9 @@ trait ValidatesFinanceAccount
     {
         $raw = $this->input('opening_balance');
 
-        if (is_string($raw) && $raw !== '') {
-            $digits = preg_replace('/\D/', '', $raw);
+        if ($raw !== null && $raw !== '') {
             $this->merge([
-                'opening_balance' => $digits === '' ? 0 : $digits,
+                'opening_balance' => max(0, Rupiah::toFloat($raw)),
             ]);
         }
 

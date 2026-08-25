@@ -20,8 +20,8 @@
             @forelse($receivables as $receivable)
                 <tr>
                     <td data-label="Pihak" class="entity-table-text">{{ $receivable->party_name }}</td>
-                    <td data-label="Total Piutang" class="entity-money">Rp {{ number_format($receivable->principal_amount, 0, ',', '.') }}</td>
-                    <td data-label="Outstanding" class="entity-money">Rp {{ number_format($receivable->remaining_balance, 0, ',', '.') }}</td>
+                    <td data-label="Total Piutang" class="entity-money">{{ rupiah($receivable->principal_amount) }}</td>
+                    <td data-label="Outstanding" class="entity-money">{{ rupiah($receivable->remaining_balance) }}</td>
                     <td data-label="Tanggal">{{ $receivable->receivable_date?->format('Y-m-d') }}</td>
                     <td data-label="Jatuh Tempo">{{ $receivable->due_date?->format('Y-m-d') ?: '—' }}</td>
                     <td data-label="Status">{{ $receivable->computedStatus()->label() }}</td>

@@ -7,6 +7,7 @@ use App\Models\Debt;
 use App\Models\DebtPayment;
 use App\Services\FinanceContextService;
 use App\Support\FinanceContext;
+use App\Support\Rupiah;
 use Illuminate\Http\Request;
 
 class DebtController extends Controller
@@ -170,8 +171,6 @@ class DebtController extends Controller
 
     private function parseRupiah(string $raw): string
     {
-        $digits = preg_replace('/\D/', '', $raw);
-
-        return $digits === '' || $digits === '0' ? '0' : $digits;
+        return Rupiah::parse($raw);
     }
 }

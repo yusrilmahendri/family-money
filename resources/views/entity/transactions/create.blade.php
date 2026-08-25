@@ -3,7 +3,9 @@
     <h3>Tambah Pengeluaran</h3>
     <form method="POST" action="{{ route('entity.transactions.store', $entity) }}">
         @csrf
-        <div class="form-group"><label>Jumlah</label><input class="form-control" name="amount" value="{{ old('amount') }}" required></div>
+        <div class="form-group"><label>Jumlah</label>
+            <x-rupiah-input name="amount" :value="old('amount')" required />
+        </div>
         <div class="form-group"><label>Tanggal</label><input type="date" class="form-control" name="transaction_date" value="{{ old('transaction_date', now()->toDateString()) }}" required></div>
         <div class="form-group"><label>Deskripsi</label><input class="form-control" name="description" value="{{ old('description') }}"></div>
         @include('entity.accounts._select', ['accounts' => $accounts])

@@ -9,6 +9,7 @@ use App\Models\RecurringTransaction;
 use App\Models\Transaction;
 use App\Services\RecurringTransactionRunner;
 use App\Support\FinanceContext;
+use App\Support\Rupiah;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -24,7 +25,7 @@ class RecurringTransactionController extends Controller
 
         return DataTables::of($q)
             ->editColumn('name', fn (RecurringTransaction $r) => $r->name ?: '-')
-            ->editColumn('amount', fn (RecurringTransaction $r) => 'Rp '.number_format((float) $r->amount, 0, ',', '.'))
+            ->editColumn('amount', fn (RecurringTransaction $r) => Rupiah::format($r->amount))
             ->addColumn('category', fn (RecurringTransaction $r) => $r->category?->name ?? '— Umum —')
             ->addColumn('frequency_label', fn (RecurringTransaction $r) => $this->frequencyLabel($r))
             ->editColumn('next_due', function (RecurringTransaction $r) {
@@ -169,7 +170,7 @@ class RecurringTransactionController extends Controller
         ]);
 
         $startDate = Carbon::parse($validated['start_date']);
-        $amount = (float) preg_replace('/\D/', '', $validated['amount']);
+        $amount = Rupiah::toFloat($validated['amount']);
         $active = (bool) ($validated['active'] ?? false);
 
         // Build temporary model untuk hitung next_due

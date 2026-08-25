@@ -8,6 +8,7 @@ use App\Models\BudgetActivity;
 use App\Models\Category;
 use App\Services\FinanceContextService;
 use App\Support\FinanceContext;
+use App\Support\Rupiah;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Yajra\DataTables\Facades\DataTables;
@@ -40,7 +41,7 @@ class OperationalExpenseController extends Controller
                 return e($b->description ?: 'Anggaran').' <small class="text-muted">('.$periode.')</small>';
             })
             ->editColumn('name', fn (BudgetActivity $a) => e($a->name).($a->description ? '<br><small class="text-muted">'.e($a->description).'</small>' : ''))
-            ->editColumn('amount', fn (BudgetActivity $a) => 'Rp '.number_format((float) $a->amount, 0, ',', '.'))
+            ->editColumn('amount', fn (BudgetActivity $a) => Rupiah::format($a->amount))
             ->editColumn('activity_date', fn (BudgetActivity $a) => optional($a->activity_date)->translatedFormat('d M Y') ?? '-')
             ->addColumn('action', 'operational.action')
             ->rawColumns(['action', 'budget', 'name'])
@@ -116,10 +117,10 @@ class OperationalExpenseController extends Controller
         if ($amount > $sisa + 0.01) {
             throw ValidationException::withMessages([
                 'amount' => sprintf(
-                    'Sisa anggaran "%s" hanya Rp %s, sedangkan biaya yang dimasukkan Rp %s.',
+                    'Sisa anggaran "%s" hanya %s, sedangkan biaya yang dimasukkan %s.',
                     $budget->description ?: ($budget->category?->name ?? 'Anggaran'),
-                    number_format($sisa, 0, ',', '.'),
-                    number_format($amount, 0, ',', '.')
+                    Rupiah::format($sisa),
+                    Rupiah::format($amount)
                 ),
             ]);
         }
@@ -176,8 +177,8 @@ class OperationalExpenseController extends Controller
         if ($amount > $sisa + 0.01) {
             throw ValidationException::withMessages([
                 'amount' => sprintf(
-                    'Sisa anggaran tidak cukup. Sisa: Rp %s.',
-                    number_format($sisa, 0, ',', '.')
+                    'Sisa anggaran tidak cukup. Sisa: %s.',
+                    Rupiah::format($sisa)
                 ),
             ]);
         }
@@ -226,16 +227,14 @@ class OperationalExpenseController extends Controller
             ],
             'terpakai' => $terpakai,
             'sisa' => $sisa,
-            'amount_formatted' => 'Rp '.number_format((float) $budget->amount, 0, ',', '.'),
-            'terpakai_formatted' => 'Rp '.number_format($terpakai, 0, ',', '.'),
-            'sisa_formatted' => 'Rp '.number_format($sisa, 0, ',', '.'),
+            'amount_formatted' => Rupiah::format($budget->amount),
+            'terpakai_formatted' => Rupiah::format($terpakai),
+            'sisa_formatted' => Rupiah::format($sisa),
         ]);
     }
 
     private function parseRupiah(string $raw): string
     {
-        $digits = preg_replace('/\D/', '', $raw);
-
-        return $digits === '' || $digits === '0' ? '0' : $digits;
+        return Rupiah::parse($raw);
     }
 }

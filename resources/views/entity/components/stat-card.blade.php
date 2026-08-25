@@ -1,11 +1,7 @@
 @php
     $negative = $negative ?? false;
-    $formatted = $value;
-    if (is_numeric($value)) {
-        $prefix = ((float) $value) < 0 ? '-' : '';
-        $formatted = $prefix.'Rp '.number_format(abs((float) $value), 0, ',', '.');
-        $negative = $negative || ((float) $value) < 0;
-    }
+    $formatted = is_numeric($value) ? rupiah($value) : $value;
+    $negative = $negative || (is_numeric($value) && (float) $value < 0);
 @endphp
 <div class="entity-stat">
     <div class="entity-stat-icon tone-{{ $tone }}">

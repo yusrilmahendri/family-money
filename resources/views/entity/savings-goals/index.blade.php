@@ -9,7 +9,7 @@
             @forelse($goals as $goal)
                 <tr>
                     <td data-label="Judul" class="entity-table-text">{{ $goal->title }}</td>
-                    <td data-label="Target" class="entity-money">Rp {{ number_format($goal->target_amount, 0, ',', '.') }}</td>
+                    <td data-label="Target" class="entity-money">{{ rupiah($goal->target_amount) }}</td>
                     <td data-label="Aksi">
                         <div class="entity-table-actions">
                             <a href="{{ route('entity.savings-goals.show', [$entity, $goal]) }}" class="btn btn-default btn-xs">Detail</a>

@@ -112,11 +112,6 @@ function entityInsight(): EntityInsightDataService
     return app(EntityInsightDataService::class);
 }
 
-function rupiah(float $amount): string
-{
-    return 'Rp '.number_format($amount, 0, ',', '.');
-}
-
 function familyIncome(FinanceEntity $family, float $amount, mixed $date, $account, string $source = 'Gaji'): Income
 {
     return Income::query()->create([

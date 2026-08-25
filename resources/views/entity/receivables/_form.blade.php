@@ -4,7 +4,7 @@
 </div>
 <div class="form-group">
     <label>Jumlah piutang</label>
-    <input class="form-control" name="principal_amount" value="{{ old('principal_amount', isset($receivable) ? (int) $receivable->principal_amount : '') }}" @disabled(isset($receivable) && $receivable->hasPayments()) required>
+    <x-rupiah-input name="principal_amount" :value="old('principal_amount', isset($receivable) ? $receivable->principal_amount : '')" :disabled="isset($receivable) && $receivable->hasPayments()" required />
     @if(isset($receivable) && $receivable->hasPayments())
         <input type="hidden" name="principal_amount" value="{{ (int) $receivable->principal_amount }}">
         <p class="text-muted">Pokok tidak dapat diubah setelah ada pembayaran.</p>

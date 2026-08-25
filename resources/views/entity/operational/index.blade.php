@@ -12,7 +12,7 @@
                     <td data-label="Tanggal">{{ $activity->activity_date?->format('Y-m-d') }}</td>
                     <td data-label="Nama" class="entity-table-text">{{ $activity->name }}</td>
                     <td data-label="Kas / Rekening">{{ $activity->financeAccount?->name ?? '—' }}</td>
-                    <td data-label="Jumlah" class="entity-money">Rp {{ number_format($activity->amount, 0, ',', '.') }}</td>
+                    <td data-label="Jumlah" class="entity-money">{{ rupiah($activity->amount) }}</td>
                 </tr>
             @empty
                 <tr><td colspan="4" class="entity-table-empty">Belum ada biaya.</td></tr>

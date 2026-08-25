@@ -5,7 +5,7 @@
 
 @section('content')
     @php
-        $money = fn ($amount) => ((float) $amount < 0 ? '-' : '').'Rp '.number_format(abs((float) $amount), 0, ',', '.');
+        $money = fn ($amount) => rupiah($amount);
         $percent = fn ($value) => number_format((float) $value, 1, ',', '.').'%';
         $anomalyItems = $anomalies['items'] ?? [];
         $anomalyNotes = $anomalies['notes'] ?? [];

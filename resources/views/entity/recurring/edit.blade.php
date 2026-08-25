@@ -4,7 +4,9 @@
     <form method="POST" action="{{ route('entity.recurring.update', [$entity, $recurring]) }}">
         @csrf @method('PUT')
         <div class="form-group"><label>Nama</label><input class="form-control" name="name" value="{{ $recurring->name }}" required></div>
-        <div class="form-group"><label>Jumlah</label><input class="form-control" name="amount" value="{{ $recurring->amount }}" required></div>
+        <div class="form-group"><label>Jumlah</label>
+            <x-rupiah-input name="amount" :value="old('amount', $recurring->amount)" required />
+        </div>
         <div class="form-group"><label>Frekuensi</label>
             <select name="frequency" class="form-control">
                 @foreach(['daily','weekly','monthly','yearly'] as $freq)

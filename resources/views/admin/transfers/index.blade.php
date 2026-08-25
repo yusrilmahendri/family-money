@@ -32,7 +32,7 @@
                         <td>{{ $transfer->transaction_date?->format('Y-m-d') }}</td>
                         <td>{{ $transfer->sourceAccount?->name ?? '—' }}</td>
                         <td>{{ $transfer->destinationAccount?->name ?? '—' }}</td>
-                        <td>Rp {{ number_format($transfer->amount, 0, ',', '.') }}</td>
+                        <td>{{ rupiah($transfer->amount) }}</td>
                         <td>{{ $transfer->description ?: '—' }}</td>
                     </tr>
                 @empty

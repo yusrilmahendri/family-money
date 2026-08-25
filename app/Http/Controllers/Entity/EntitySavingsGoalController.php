@@ -37,7 +37,7 @@ class EntitySavingsGoalController extends Controller
     {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'target_amount' => ['required', 'string'],
+            'target_amount' => $this->positiveRupiahRules(),
             'deadline' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
             'finance_entity_id' => ['prohibited'],
@@ -121,7 +121,7 @@ class EntitySavingsGoalController extends Controller
         $this->owned($financeEntity, $savings_goal);
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'target_amount' => ['required', 'string'],
+            'target_amount' => $this->positiveRupiahRules(),
             'deadline' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
             'finance_entity_id' => ['prohibited'],

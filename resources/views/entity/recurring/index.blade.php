@@ -9,7 +9,7 @@
             @forelse($recurrings as $item)
                 <tr>
                     <td data-label="Nama" class="entity-table-text">{{ $item->name }}</td>
-                    <td data-label="Jumlah" class="entity-money">Rp {{ number_format($item->amount, 0, ',', '.') }}</td>
+                    <td data-label="Jumlah" class="entity-money">{{ rupiah($item->amount) }}</td>
                     <td data-label="Aksi">
                         <div class="entity-table-actions">
                             <a href="{{ route('entity.recurring.edit', [$entity, $item]) }}" class="btn btn-default btn-xs">Edit</a>

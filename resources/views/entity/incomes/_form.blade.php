@@ -1,6 +1,5 @@
 @php
     $selectedCategory = old('category_id', isset($income) ? $income->category_id : null);
-    $amountValue = old('amount', isset($income) ? number_format((float) $income->amount, 0, ',', '.') : '');
 @endphp
 <div class="form-group">
     <label for="source">Sumber Pemasukan</label>
@@ -25,7 +24,7 @@
 ])
 <div class="form-group">
     <label for="amount">Jumlah</label>
-    <input id="amount" class="form-control js-rupiah" name="amount" value="{{ $amountValue }}" inputmode="numeric" autocomplete="off" placeholder="Rp 15.000.000" required>
+    <x-rupiah-input name="amount" :value="old('amount', isset($income) ? $income->amount : '')" placeholder="Rp 15.000.000" required />
 </div>
 <div class="form-group">
     <label for="income_date">Tanggal</label>

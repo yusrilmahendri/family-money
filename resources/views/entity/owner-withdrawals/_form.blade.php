@@ -31,7 +31,7 @@
 </div>
 <div class="form-group">
     <label>Jumlah</label>
-    <input class="form-control" name="amount" value="{{ old('amount') }}" required>
+    <x-rupiah-input name="amount" :value="old('amount')" required />
 </div>
 <div class="form-group">
     <label>Tanggal</label>

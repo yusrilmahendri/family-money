@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\FinanceEntity;
 use App\Support\FinanceEntityAccess;
+use App\Support\Rupiah;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -86,9 +87,7 @@ class StoreBusinessCapitalContributionRequest extends FormRequest
 
     public function parsedAmount(): float
     {
-        $digits = preg_replace('/\D/', '', (string) $this->input('amount'));
-
-        return (float) ($digits === '' ? 0 : $digits);
+        return Rupiah::toFloat($this->input('amount'));
     }
 
     public function resolvedBusiness(): ?FinanceEntity

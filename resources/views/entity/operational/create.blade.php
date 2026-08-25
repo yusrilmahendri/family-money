@@ -11,7 +11,9 @@
             </select>
         </div>
         <div class="form-group"><label>Nama</label><input class="form-control" name="name" required></div>
-        <div class="form-group"><label>Jumlah</label><input class="form-control" name="amount" required></div>
+        <div class="form-group"><label>Jumlah</label>
+            <x-rupiah-input name="amount" :value="old('amount')" required />
+        </div>
         <div class="form-group"><label>Tanggal</label><input type="date" class="form-control" name="activity_date" value="{{ now()->toDateString() }}" required></div>
         @include('entity.accounts._select', ['accounts' => $accounts])
         <div class="entity-form-actions">

@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Entity\Concerns;
 
+use App\Support\Rupiah;
+
 trait ParsesRupiah
 {
     protected function parseRupiah(?string $raw): float
     {
-        $digits = preg_replace('/\D/', '', (string) $raw);
-
-        return (float) ($digits === '' ? 0 : $digits);
+        return Rupiah::toFloat($raw);
     }
 
     /**
@@ -16,16 +16,6 @@ trait ParsesRupiah
      */
     protected function positiveRupiahRules(): array
     {
-        return [
-            'required',
-            'string',
-            function (string $attribute, mixed $value, \Closure $fail): void {
-                $digits = preg_replace('/\D/', '', (string) $value);
-
-                if ($digits === '' || (float) $digits <= 0) {
-                    $fail('Jumlah harus lebih dari 0.');
-                }
-            },
-        ];
+        return Rupiah::positiveRules();
     }
 }

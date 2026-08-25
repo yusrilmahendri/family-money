@@ -4,7 +4,9 @@
     <form method="POST" action="{{ route('entity.recurring.store', $entity) }}">
         @csrf
         <div class="form-group"><label>Nama</label><input class="form-control" name="name" required></div>
-        <div class="form-group"><label>Jumlah</label><input class="form-control" name="amount" required></div>
+        <div class="form-group"><label>Jumlah</label>
+            <x-rupiah-input name="amount" :value="old('amount')" required />
+        </div>
         <div class="form-group"><label>Frekuensi</label>
             <select name="frequency" class="form-control">
                 <option value="monthly">Bulanan</option>

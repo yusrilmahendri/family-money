@@ -4,7 +4,9 @@
     <form method="POST" action="{{ route('entity.savings-goals.store', $entity) }}">
         @csrf
         <div class="form-group"><label>Judul</label><input class="form-control" name="title" required></div>
-        <div class="form-group"><label>Target</label><input class="form-control" name="target_amount" required></div>
+        <div class="form-group"><label>Target</label>
+            <x-rupiah-input name="target_amount" :value="old('target_amount')" required />
+        </div>
         <div class="form-group"><label>Deadline</label><input type="date" class="form-control" name="deadline"></div>
         <div class="entity-form-actions">
             <button class="btn btn-primary">Simpan</button>

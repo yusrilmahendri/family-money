@@ -5,6 +5,7 @@ namespace App\Services\Insight;
 use App\Models\FinanceEntity;
 use App\Services\BusinessProfitService;
 use App\Services\EntityReportService;
+use App\Support\Rupiah;
 use Carbon\Carbon;
 
 class EntityFinancialSummaryService
@@ -137,9 +138,7 @@ class EntityFinancialSummaryService
 
     public function formatMoney(float $amount): string
     {
-        $prefix = $amount < 0 ? '-' : '';
-
-        return $prefix.'Rp '.number_format(abs($amount), 0, ',', '.');
+        return Rupiah::format($amount);
     }
 
     /**

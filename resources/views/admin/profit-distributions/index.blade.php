@@ -42,7 +42,7 @@
                         </td>
                         <td>{{ $distribution->businessEntity?->name }} / {{ $distribution->sourceAccount?->name }}</td>
                         <td>{{ $distribution->familyEntity?->name }} / {{ $distribution->destinationAccount?->name }}</td>
-                        <td>Rp {{ number_format($distribution->amount, 0, ',', '.') }}</td>
+                        <td>{{ rupiah($distribution->amount) }}</td>
                         <td>{{ $distribution->description ?: '—' }}</td>
                     </tr>
                 @empty

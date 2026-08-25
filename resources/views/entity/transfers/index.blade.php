@@ -20,7 +20,7 @@
                     <td data-label="Tanggal">{{ $transfer->transaction_date?->format('Y-m-d') }}</td>
                     <td data-label="Dari">{{ $transfer->sourceAccount?->name ?? '—' }}</td>
                     <td data-label="Ke">{{ $transfer->destinationAccount?->name ?? '—' }}</td>
-                    <td data-label="Jumlah" class="entity-money">Rp {{ number_format($transfer->amount, 0, ',', '.') }}</td>
+                    <td data-label="Jumlah" class="entity-money">{{ rupiah($transfer->amount) }}</td>
                     <td data-label="Keterangan" class="entity-table-text">{{ $transfer->description ?: '—' }}</td>
                 </tr>
             @empty

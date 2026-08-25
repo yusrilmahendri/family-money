@@ -8,6 +8,7 @@ use App\Models\FinanceAccount;
 use App\Models\FinanceEntity;
 use App\Models\Receivable;
 use App\Models\ReceivablePayment;
+use App\Support\Rupiah;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -115,7 +116,7 @@ class ReceivableService
 
             if ($amount > $remaining) {
                 throw ValidationException::withMessages([
-                    'amount' => 'Jumlah pembayaran melebihi sisa piutang.',
+                    'amount' => 'Jumlah pembayaran melebihi sisa piutang. Sisa piutang hanya '.Rupiah::format($remaining).'.',
                 ]);
             }
 

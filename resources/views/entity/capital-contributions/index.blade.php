@@ -24,7 +24,7 @@
                     <td data-label="Tanggal">{{ $contribution->transaction_date?->format('Y-m-d') }}</td>
                     <td data-label="Dari" class="entity-table-text">{{ $contribution->sourceEntity?->name }} / {{ $contribution->sourceAccount?->name }}</td>
                     <td data-label="Ke" class="entity-table-text">{{ $contribution->businessEntity?->name }} / {{ $contribution->destinationAccount?->name }}</td>
-                    <td data-label="Jumlah" class="entity-money">Rp {{ number_format($contribution->amount, 0, ',', '.') }}</td>
+                    <td data-label="Jumlah" class="entity-money">{{ rupiah($contribution->amount) }}</td>
                     <td data-label="Keterangan" class="entity-table-text">{{ $contribution->description ?: '—' }}</td>
                 </tr>
             @empty

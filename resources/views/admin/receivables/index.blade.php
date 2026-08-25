@@ -30,8 +30,8 @@
                 @forelse($receivables as $receivable)
                     <tr>
                         <td>{{ $receivable->party_name }}</td>
-                        <td>Rp {{ number_format($receivable->principal_amount, 0, ',', '.') }}</td>
-                        <td>Rp {{ number_format($receivable->remaining_balance, 0, ',', '.') }}</td>
+                        <td>{{ rupiah($receivable->principal_amount) }}</td>
+                        <td>{{ rupiah($receivable->remaining_balance) }}</td>
                         <td>{{ $receivable->receivable_date?->format('Y-m-d') }}</td>
                         <td>{{ $receivable->due_date?->format('Y-m-d') ?: '—' }}</td>
                         <td>{{ $receivable->computedStatus()->label() }}</td>

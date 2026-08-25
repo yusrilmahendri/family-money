@@ -5,7 +5,7 @@
 
 @section('content')
     @php
-        $money = fn ($amount) => ((float) $amount < 0 ? '-' : '').'Rp '.number_format(abs((float) $amount), 0, ',', '.');
+        $money = fn ($amount) => rupiah($amount);
         $monthIncome = (float) ($monthCashflow['income'] ?? 0);
         $monthExpense = (float) ($monthCashflow['expense'] ?? 0);
         $monthNet = (float) ($monthCashflow['net'] ?? ($monthIncome - $monthExpense));

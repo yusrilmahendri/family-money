@@ -1,7 +1,7 @@
 @extends('entity.layout')
 @section('content')
     <h3 style="margin-top:0;">Kas & Rekening</h3>
-    <p>Total Saldo: <strong>Rp {{ number_format($totalSaldo, 0, ',', '.') }}</strong></p>
+    <p>Total Saldo: <strong>{{ rupiah($totalSaldo) }}</strong></p>
     <p>
         <a href="{{ route('entity.accounts.create', $entity) }}" class="btn btn-primary btn-sm">Tambah</a>
         <a href="{{ route('entity.transfers.create', $entity) }}" class="btn btn-default btn-sm">Transfer</a>
@@ -27,7 +27,7 @@
                     <td data-label="Tipe">{{ $account->type->label() }}</td>
                     <td data-label="Bank">{{ $account->bank_name ?: '—' }}</td>
                     <td data-label="Nomor">{{ $account->maskedAccountNumber() }}</td>
-                    <td data-label="Saldo" class="entity-money">Rp {{ number_format($account->current_balance, 0, ',', '.') }}</td>
+                    <td data-label="Saldo" class="entity-money">{{ rupiah($account->current_balance) }}</td>
                     <td data-label="Default">
                         @if($account->is_default)
                             <span class="label label-info">Default</span>

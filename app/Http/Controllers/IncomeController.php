@@ -9,6 +9,7 @@ use App\Models\Saldo;
 use App\Services\FinanceContextService;
 use App\Support\FinanceContext;
 use App\Support\FinanceOwnership;
+use App\Support\Rupiah;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -35,7 +36,7 @@ class IncomeController extends Controller
             ->addColumn('category', fn (Income $i) => $i->category?->name ?? '—')
             ->editColumn('source', fn (Income $i) => $i->source ?: '-')
             ->editColumn('description', fn (Income $i) => $i->description ?: '-')
-            ->editColumn('amount', fn (Income $i) => 'Rp '.number_format((float) $i->amount, 0, ',', '.'))
+            ->editColumn('amount', fn (Income $i) => Rupiah::format($i->amount))
             ->editColumn('income_date', fn (Income $i) => $i->income_date?->format('d M Y') ?? '-')
             ->addColumn('action', 'incomes.action')
             ->rawColumns(['action'])
@@ -215,8 +216,6 @@ class IncomeController extends Controller
 
     private function parseRupiah(string $raw): string
     {
-        $digits = preg_replace('/\D/', '', $raw);
-
-        return $digits === '' || $digits === '0' ? '0' : $digits;
+        return Rupiah::parse($raw);
     }
 }

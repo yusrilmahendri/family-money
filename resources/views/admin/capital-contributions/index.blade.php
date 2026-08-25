@@ -34,7 +34,7 @@
                         <td>{{ $contribution->transaction_date?->format('Y-m-d') }}</td>
                         <td>{{ $contribution->sourceEntity?->name }} / {{ $contribution->sourceAccount?->name }}</td>
                         <td>{{ $contribution->businessEntity?->name }} / {{ $contribution->destinationAccount?->name }}</td>
-                        <td>Rp {{ number_format($contribution->amount, 0, ',', '.') }}</td>
+                        <td>{{ rupiah($contribution->amount) }}</td>
                         <td>{{ $contribution->description ?: '—' }}</td>
                     </tr>
                 @empty

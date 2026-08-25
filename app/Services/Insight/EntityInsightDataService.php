@@ -8,6 +8,7 @@ use App\Models\Income;
 use App\Models\Transaction;
 use App\Services\BusinessProfitService;
 use App\Services\EntityReportService;
+use App\Support\Rupiah;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -573,9 +574,7 @@ class EntityInsightDataService
 
     private function rupiah(float $amount): string
     {
-        $sign = $amount < 0 ? '-' : '';
-
-        return $sign.'Rp '.number_format(abs($amount), 0, ',', '.');
+        return Rupiah::format($amount);
     }
 
     /**

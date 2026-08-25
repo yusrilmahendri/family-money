@@ -32,7 +32,7 @@
                     </td>
                     <td data-label="Dari" class="entity-table-text">{{ $distribution->businessEntity?->name }} / {{ $distribution->sourceAccount?->name }}</td>
                     <td data-label="Ke" class="entity-table-text">{{ $distribution->familyEntity?->name }} / {{ $distribution->destinationAccount?->name }}</td>
-                    <td data-label="Jumlah" class="entity-money">Rp {{ number_format($distribution->amount, 0, ',', '.') }}</td>
+                    <td data-label="Jumlah" class="entity-money">{{ rupiah($distribution->amount) }}</td>
                     <td data-label="Keterangan" class="entity-table-text">{{ $distribution->description ?: '—' }}</td>
                 </tr>
             @empty

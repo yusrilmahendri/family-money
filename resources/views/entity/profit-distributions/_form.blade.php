@@ -1,7 +1,7 @@
 <p class="text-muted">
-    Laba periode: Rp {{ number_format($availability['profit'], 0, ',', '.') }}.
-    Sudah dibagi: Rp {{ number_format($availability['distributed'], 0, ',', '.') }}.
-    Tersedia: Rp {{ number_format($availability['available'], 0, ',', '.') }}.
+    Laba periode: {{ rupiah($availability['profit']) }}.
+    Sudah dibagi: {{ rupiah($availability['distributed']) }}.
+    Tersedia: {{ rupiah($availability['available']) }}.
     Bukan prive, modal, atau biaya operasional.
 </p>
 <div class="form-group">
@@ -37,7 +37,7 @@
 </div>
 <div class="form-group">
     <label>Jumlah</label>
-    <input class="form-control" name="amount" value="{{ old('amount') }}" required>
+    <x-rupiah-input name="amount" :value="old('amount')" required />
 </div>
 <div class="form-group">
     <label>Tanggal pembagian</label>

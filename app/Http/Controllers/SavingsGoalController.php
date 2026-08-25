@@ -7,6 +7,7 @@ use App\Models\GoalContribution;
 use App\Models\SavingsGoal;
 use App\Services\FinanceContextService;
 use App\Support\FinanceContext;
+use App\Support\Rupiah;
 use Illuminate\Http\Request;
 
 class SavingsGoalController extends Controller
@@ -147,8 +148,6 @@ class SavingsGoalController extends Controller
 
     private function parseRupiah(string $raw): string
     {
-        $digits = preg_replace('/\D/', '', $raw);
-
-        return $digits === '' || $digits === '0' ? '0' : $digits;
+        return Rupiah::parse($raw);
     }
 }

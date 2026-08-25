@@ -29,7 +29,7 @@
 </div>
 <div class="form-group">
     <label>Saldo awal</label>
-    <input class="form-control" name="opening_balance" value="{{ old('opening_balance', $account?->opening_balance ?? 0) }}">
+    <x-rupiah-input name="opening_balance" :value="old('opening_balance', $account?->opening_balance ?? 0)" />
     <small class="text-muted">Hanya saldo awal, bukan saldo berjalan.</small>
 </div>
 @unless($account)

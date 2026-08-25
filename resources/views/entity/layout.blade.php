@@ -54,6 +54,7 @@
             if (backdrop) backdrop.addEventListener('click', closeNav);
         })();
     </script>
+    <script src="{{ asset('js/rupiah-input.js') }}"></script>
     @stack('scripts')
 </body>
 </html>

@@ -11,6 +11,7 @@ use App\Models\Transaction;
 use App\Services\FinanceContextService;
 use App\Support\FinanceContext;
 use App\Support\FinanceOwnership;
+use App\Support\Rupiah;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -38,7 +39,7 @@ class TransactionsController extends Controller
             })
             // FORMAT RUPIAH
             ->editColumn('amount', function ($row) {
-                return 'Rp '.number_format($row->amount, 0, ',', '.');
+                return Rupiah::format($row->amount);
             })
 
             // FORMAT DESCRIPTION
@@ -133,7 +134,7 @@ class TransactionsController extends Controller
             ...$this->legacyAccountRules(FinanceContext::PRIBADI),
         ]);
 
-        $total = (float) preg_replace('/[^0-9]/', '', $validated['total']);
+        $total = Rupiah::toFloat($validated['total']);
 
         // Validasi: kalau ada category_id, pastikan saldo kategori cukup
         if (! empty($validated['category_id'])) {
@@ -187,15 +188,15 @@ class TransactionsController extends Controller
 
             throw ValidationException::withMessages([
                 'total' => sprintf(
-                    'Saldo "%s" tidak cukup. Tersedia: Rp %s, transaksi yang dimasukkan: Rp %s.',
+                    'Saldo "%s" tidak cukup. Tersedia: %s, transaksi yang dimasukkan: %s.',
                     $namaKategori,
-                    number_format($tersedia, 0, ',', '.'),
-                    number_format($amount, 0, ',', '.')
+                    Rupiah::format($tersedia),
+                    Rupiah::format($amount)
                 ),
                 'amount' => sprintf(
-                    'Saldo "%s" tidak cukup. Tersedia: Rp %s.',
+                    'Saldo "%s" tidak cukup. Tersedia: %s.',
                     $namaKategori,
-                    number_format($tersedia, 0, ',', '.')
+                    Rupiah::format($tersedia)
                 ),
             ]);
         }
@@ -220,13 +221,13 @@ class TransactionsController extends Controller
         if ($amount > $tersedia + 0.01) {
             throw ValidationException::withMessages([
                 'total' => sprintf(
-                    'Saldo bebas tidak cukup. Tersedia: Rp %s, transaksi yang dimasukkan: Rp %s.',
-                    number_format($tersedia, 0, ',', '.'),
-                    number_format($amount, 0, ',', '.')
+                    'Saldo bebas tidak cukup. Tersedia: %s, transaksi yang dimasukkan: %s.',
+                    Rupiah::format($tersedia),
+                    Rupiah::format($amount)
                 ),
                 'amount' => sprintf(
-                    'Saldo bebas tidak cukup. Tersedia: Rp %s.',
-                    number_format($tersedia, 0, ',', '.')
+                    'Saldo bebas tidak cukup. Tersedia: %s.',
+                    Rupiah::format($tersedia)
                 ),
             ]);
         }
@@ -276,7 +277,7 @@ class TransactionsController extends Controller
             'keterangan_detail' => 'nullable|string',
         ]);
 
-        $amount = (float) preg_replace('/[^0-9]/', '', $validated['amount']);
+        $amount = Rupiah::toFloat($validated['amount']);
 
         // Validasi saldo (tidak menghitung transaksi yang sedang di-edit)
         if (! empty($validated['category_id'])) {

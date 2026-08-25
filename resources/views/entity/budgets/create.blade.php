@@ -3,7 +3,9 @@
     <h3>Tambah Anggaran</h3>
     <form method="POST" action="{{ route('entity.budgets.store', $entity) }}">
         @csrf
-        <div class="form-group"><label>Jumlah</label><input class="form-control" name="amount" required></div>
+        <div class="form-group"><label>Jumlah</label>
+            <x-rupiah-input name="amount" :value="old('amount')" required />
+        </div>
         <div class="form-group"><label>Periode</label><input type="date" class="form-control" name="periode" value="{{ now()->toDateString() }}" required></div>
         <div class="form-group"><label>Kategori</label>
             <select name="category_id" class="form-control" required>

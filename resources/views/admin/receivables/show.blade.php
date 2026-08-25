@@ -4,8 +4,8 @@
     <h3 style="margin-top:0;">{{ $receivable->party_name }} — {{ $entity->name }}</h3>
     <p>
         Status: <strong>{{ $receivable->computedStatus()->label() }}</strong><br>
-        Total: Rp {{ number_format($receivable->principal_amount, 0, ',', '.') }}<br>
-        Outstanding: Rp {{ number_format($receivable->remaining_balance, 0, ',', '.') }}<br>
+        Total: {{ rupiah($receivable->principal_amount) }}<br>
+        Outstanding: {{ rupiah($receivable->remaining_balance) }}<br>
         Tanggal: {{ $receivable->receivable_date?->format('Y-m-d') }}<br>
         Jatuh tempo: {{ $receivable->due_date?->format('Y-m-d') ?: '—' }}
     </p>
@@ -24,7 +24,7 @@
             @include('entity.accounts._select', ['accounts' => $accounts, 'entity' => $entity])
             <div class="form-group">
                 <label>Jumlah</label>
-                <input class="form-control" name="amount" required>
+                <x-rupiah-input name="amount" :value="old('amount')" required />
             </div>
             <div class="form-group">
                 <label>Tanggal pembayaran</label>
@@ -49,7 +49,7 @@
                 <tr>
                     <td>{{ $payment->payment_date?->format('Y-m-d') }}</td>
                     <td>{{ $payment->financeAccount?->name ?? '—' }}</td>
-                    <td>Rp {{ number_format($payment->amount, 0, ',', '.') }}</td>
+                    <td>{{ rupiah($payment->amount) }}</td>
                     <td>{{ $payment->description ?: '—' }}</td>
                 </tr>
             @empty

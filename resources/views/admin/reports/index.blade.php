@@ -52,10 +52,10 @@
         @forelse($familyRows as $row)
             <tr>
                 <td>{{ $row['entity_name'] }} <span class="label label-info">FAMILY</span></td>
-                <td>Rp {{ number_format($row['balance_total'], 0, ',', '.') }}</td>
-                <td>Rp {{ number_format($row['family']['pengeluaran'], 0, ',', '.') }}</td>
-                <td>Rp {{ number_format($row['family']['modal_ke_usaha'], 0, ',', '.') }}</td>
-                <td>Rp {{ number_format($row['family']['penerimaan_prive'], 0, ',', '.') }}</td>
+                <td>{{ rupiah($row['balance_total']) }}</td>
+                <td>{{ rupiah($row['family']['pengeluaran']) }}</td>
+                <td>{{ rupiah($row['family']['modal_ke_usaha']) }}</td>
+                <td>{{ rupiah($row['family']['penerimaan_prive']) }}</td>
             </tr>
         @empty
             <tr><td colspan="5" class="text-muted">Tidak ada FAMILY pada filter ini.</td></tr>
@@ -81,11 +81,11 @@
         @forelse($businessRows as $row)
             <tr>
                 <td>{{ $row['entity_name'] }} <span class="label label-success">BUSINESS</span></td>
-                <td>Rp {{ number_format($row['balance_total'], 0, ',', '.') }}</td>
-                <td>Rp {{ number_format($row['business']['revenue'], 0, ',', '.') }}</td>
-                <td>Rp {{ number_format($row['business']['profit'], 0, ',', '.') }}</td>
-                <td>Rp {{ number_format($row['business']['capital_received'], 0, ',', '.') }}</td>
-                <td>Rp {{ number_format($row['business']['prive'], 0, ',', '.') }}</td>
+                <td>{{ rupiah($row['balance_total']) }}</td>
+                <td>{{ rupiah($row['business']['revenue']) }}</td>
+                <td>{{ rupiah($row['business']['profit']) }}</td>
+                <td>{{ rupiah($row['business']['capital_received']) }}</td>
+                <td>{{ rupiah($row['business']['prive']) }}</td>
             </tr>
         @empty
             <tr><td colspan="6" class="text-muted">Tidak ada BUSINESS pada filter ini.</td></tr>

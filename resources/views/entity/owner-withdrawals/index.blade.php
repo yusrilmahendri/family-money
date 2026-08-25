@@ -24,7 +24,7 @@
                     <td data-label="Tanggal">{{ $withdrawal->transaction_date?->format('Y-m-d') }}</td>
                     <td data-label="Dari" class="entity-table-text">{{ $withdrawal->businessEntity?->name }} / {{ $withdrawal->sourceAccount?->name }}</td>
                     <td data-label="Ke" class="entity-table-text">{{ $withdrawal->familyEntity?->name }} / {{ $withdrawal->destinationAccount?->name }}</td>
-                    <td data-label="Jumlah" class="entity-money">Rp {{ number_format($withdrawal->amount, 0, ',', '.') }}</td>
+                    <td data-label="Jumlah" class="entity-money">{{ rupiah($withdrawal->amount) }}</td>
                     <td data-label="Keterangan" class="entity-table-text">{{ $withdrawal->description ?: '—' }}</td>
                 </tr>
             @empty

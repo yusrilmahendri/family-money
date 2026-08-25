@@ -13,36 +13,36 @@
 <body>
     <h2>Laporan {{ $report['entity_type'] }} — {{ $report['entity_name'] }}</h2>
     <p>Periode: {{ $report['period_label'] }}</p>
-    <p>Total saldo: Rp {{ number_format($report['balance_total'], 0, ',', '.') }}</p>
-    <p>Piutang outstanding: Rp {{ number_format($report['piutang_outstanding'], 0, ',', '.') }}</p>
+    <p>Total saldo: {{ rupiah($report['balance_total']) }}</p>
+    <p>Piutang outstanding: {{ rupiah($report['piutang_outstanding']) }}</p>
 
     @if(!empty($report['family']))
         <h3>Keluarga</h3>
-        <p>Pemasukan: Rp {{ number_format($report['family']['pemasukan'], 0, ',', '.') }}</p>
-        <p>Pengeluaran: Rp {{ number_format($report['family']['pengeluaran'], 0, ',', '.') }}</p>
-        <p>Hutang outstanding: Rp {{ number_format($report['family']['hutang_outstanding'], 0, ',', '.') }}</p>
-        <p>Tabungan: Rp {{ number_format($report['family']['tabungan'], 0, ',', '.') }}</p>
-        <p>Modal ke usaha: Rp {{ number_format($report['family']['modal_ke_usaha'], 0, ',', '.') }}</p>
-        <p>Penerimaan prive: Rp {{ number_format($report['family']['penerimaan_prive'], 0, ',', '.') }}</p>
-        <p>Laba diterima: Rp {{ number_format($report['family']['penerimaan_laba'], 0, ',', '.') }}</p>
+        <p>Pemasukan: {{ rupiah($report['family']['pemasukan']) }}</p>
+        <p>Pengeluaran: {{ rupiah($report['family']['pengeluaran']) }}</p>
+        <p>Hutang outstanding: {{ rupiah($report['family']['hutang_outstanding']) }}</p>
+        <p>Tabungan: {{ rupiah($report['family']['tabungan']) }}</p>
+        <p>Modal ke usaha: {{ rupiah($report['family']['modal_ke_usaha']) }}</p>
+        <p>Penerimaan prive: {{ rupiah($report['family']['penerimaan_prive']) }}</p>
+        <p>Laba diterima: {{ rupiah($report['family']['penerimaan_laba']) }}</p>
     @endif
 
     @if(!empty($report['business']))
         <h3>Usaha</h3>
-        <p>Revenue: Rp {{ number_format($report['business']['revenue'], 0, ',', '.') }}</p>
-        <p>Operational expense: Rp {{ number_format($report['business']['operational_expense'], 0, ',', '.') }}</p>
-        <p>Laba / Rugi: Rp {{ number_format($report['business']['profit'], 0, ',', '.') }}</p>
-        <p>Anggaran planned: Rp {{ number_format($report['business']['budget_planned'], 0, ',', '.') }}</p>
-        <p>Anggaran realized: Rp {{ number_format($report['business']['budget_realized'], 0, ',', '.') }}</p>
-        <p>Modal diterima: Rp {{ number_format($report['business']['capital_received'], 0, ',', '.') }}</p>
-        <p>Prive: Rp {{ number_format($report['business']['prive'], 0, ',', '.') }}</p>
-        <p>Profit distributed: Rp {{ number_format($report['business']['profit_distributed'], 0, ',', '.') }}</p>
+        <p>Revenue: {{ rupiah($report['business']['revenue']) }}</p>
+        <p>Operational expense: {{ rupiah($report['business']['operational_expense']) }}</p>
+        <p>Laba / Rugi: {{ rupiah($report['business']['profit']) }}</p>
+        <p>Anggaran planned: {{ rupiah($report['business']['budget_planned']) }}</p>
+        <p>Anggaran realized: {{ rupiah($report['business']['budget_realized']) }}</p>
+        <p>Modal diterima: {{ rupiah($report['business']['capital_received']) }}</p>
+        <p>Prive: {{ rupiah($report['business']['prive']) }}</p>
+        <p>Profit distributed: {{ rupiah($report['business']['profit_distributed']) }}</p>
     @endif
 
     <h3>Cash flow</h3>
-    <p>Cash in: Rp {{ number_format($report['cash_flow']['cash_in'], 0, ',', '.') }}</p>
-    <p>Cash out: Rp {{ number_format($report['cash_flow']['cash_out'], 0, ',', '.') }}</p>
-    <p>Net cash: Rp {{ number_format($report['cash_flow']['net_cash'], 0, ',', '.') }}</p>
+    <p>Cash in: {{ rupiah($report['cash_flow']['cash_in']) }}</p>
+    <p>Cash out: {{ rupiah($report['cash_flow']['cash_out']) }}</p>
+    <p>Net cash: {{ rupiah($report['cash_flow']['net_cash']) }}</p>
 
     <h3>Kas / Rekening</h3>
     <table>
@@ -53,7 +53,7 @@
                 <td>{{ $account['name'] }}</td>
                 <td>{{ $account['type'] }}</td>
                 <td>{{ $account['account_number'] ?: '—' }}</td>
-                <td>Rp {{ number_format($account['balance'], 0, ',', '.') }}</td>
+                <td>{{ rupiah($account['balance']) }}</td>
             </tr>
         @endforeach
         </tbody>
@@ -68,7 +68,7 @@
                 <td>{{ $movement['date'] }}</td>
                 <td>{{ $movement['type'] }}</td>
                 <td>{{ $movement['description'] }}</td>
-                <td>Rp {{ number_format($movement['amount'], 0, ',', '.') }}</td>
+                <td>{{ rupiah($movement['amount']) }}</td>
             </tr>
         @endforeach
         </tbody>
