@@ -124,6 +124,10 @@ class RecurringTransactionRunner
             return null;
         }
 
-        return app(FinanceAccountService::class)->ensureDefaultAccount($entity);
+        try {
+            return app(FinanceAccountService::class)->ensureDefaultAccount($entity);
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
     }
 }

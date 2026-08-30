@@ -2,6 +2,9 @@
 @section('content')
     <h3 style="margin-top:0;">Kas & Rekening</h3>
     <p>Total Saldo: <strong>{{ rupiah($totalSaldo) }}</strong></p>
+    <p class="text-muted" style="font-size:13px; margin-top:-6px;">
+        Total Saldo hanya menghitung Kas/Rekening aktif. Rekening nonaktif tetap disimpan untuk histori.
+    </p>
     <p>
         <a href="{{ route('entity.accounts.create', $entity) }}" class="btn btn-primary btn-sm">Tambah</a>
         <a href="{{ route('entity.transfers.create', $entity) }}" class="btn btn-default btn-sm">Transfer</a>
@@ -72,7 +75,8 @@
         </table>
     </div>
     <p class="text-muted" style="font-size:12px;">
-        Kolom Saldo adalah saldo berjalan (termasuk account nonaktif). Saldo awal bukan saldo berjalan.
-        Nomor rekening ditampilkan tersamar.
+        Kolom Saldo adalah saldo berjalan masing-masing rekening, termasuk rekening nonaktif.
+        Total Saldo hanya menghitung Kas/Rekening aktif. Rekening nonaktif tetap disimpan untuk histori.
+        Saldo awal bukan saldo berjalan. Nomor rekening ditampilkan tersamar.
     </p>
 @endsection

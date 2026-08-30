@@ -28,11 +28,17 @@ class FinanceAccountBalanceService
      *
      * Budget headers are not outflow. Transfers, capital, prive, profit distribution, and unpaid
      * receivable principal are not income/expense. Only receivable payments are cash inflow.
-     * Inactive accounts still count. saldos / SaldoGlobalService are never included.
+     * Individual balances include inactive accounts. Operating entity totals do not.
+     * saldos / SaldoGlobalService are never included.
      */
     public function balance(FinanceAccount $account): float
     {
         return $this->breakdown($account)['balance'];
+    }
+
+    public function getAccountBalance(FinanceAccount $account): float
+    {
+        return $this->balance($account);
     }
 
     /**
@@ -165,7 +171,12 @@ class FinanceAccountBalanceService
 
     public function balanceForEntity(FinanceEntity $entity): float
     {
-        return (float) $this->summary($entity)['total'];
+        return $this->getActiveAccountsTotal($entity);
+    }
+
+    public function getActiveAccountsTotal(FinanceEntity $entity): float
+    {
+        return (float) $this->summary($entity)['operating_total'];
     }
 
     /**
@@ -199,7 +210,9 @@ class FinanceAccountBalanceService
      * @return array{
      *     accounts: Collection<int, FinanceAccount>,
      *     rows: Collection<int, array<string, mixed>>,
-     *     total: float
+     *     total: float,
+     *     operating_total: float,
+     *     all_total: float
      * }
      */
     public function summary(FinanceEntity $entity): array
@@ -254,10 +267,17 @@ class FinanceAccountBalanceService
             ];
         });
 
+        $allTotal = (float) $rows->sum('balance');
+        $operatingTotal = (float) $rows
+            ->filter(fn (array $row) => (bool) $row['account']->is_active)
+            ->sum('balance');
+
         return [
             'accounts' => $accounts,
             'rows' => $rows,
-            'total' => (float) $rows->sum('balance'),
+            'total' => $operatingTotal,
+            'operating_total' => $operatingTotal,
+            'all_total' => $allTotal,
         ];
     }
 

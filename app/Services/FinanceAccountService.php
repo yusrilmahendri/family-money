@@ -44,10 +44,18 @@ class FinanceAccountService
 
     public function ensureDefaultAccount(FinanceEntity $entity): FinanceAccount
     {
-        $existing = $entity->accounts()->orderBy('id')->first();
+        $existing = $entity->accounts()
+            ->where('is_active', true)
+            ->orderByDesc('is_default')
+            ->orderBy('id')
+            ->first();
 
         if ($existing instanceof FinanceAccount) {
             return $existing;
+        }
+
+        if ($entity->accounts()->exists()) {
+            throw new InvalidArgumentException('Entity belum memiliki akun default yang aktif.');
         }
 
         return $this->create($entity, [

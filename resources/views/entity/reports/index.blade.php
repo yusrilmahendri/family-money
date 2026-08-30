@@ -2,7 +2,7 @@
 
 @section('content')
     <h3 style="margin-top:0;">Laporan {{ $entity->type->value }}</h3>
-    <p class="text-muted">Angka memakai service yang sama dengan dashboard. Transfer, modal, prive, dan bagi laba bukan income/expense.</p>
+    <p class="text-muted">Angka memakai service yang sama dengan dashboard. Transfer, modal, prive, dan bagi laba bukan income/expense. Total Saldo hanya menghitung Kas/Rekening aktif; mutasi historis tetap mencakup rekening nonaktif.</p>
 
     <form method="GET" action="{{ route('entity.reports.index', $entity) }}" class="entity-toolbar">
         <div class="form-group">

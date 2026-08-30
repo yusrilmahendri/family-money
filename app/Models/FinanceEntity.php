@@ -190,7 +190,10 @@ class FinanceEntity extends Model
 
     public function defaultAccount(): ?FinanceAccount
     {
-        return $this->accounts()->where('is_default', true)->first();
+        return $this->accounts()
+            ->where('is_default', true)
+            ->where('is_active', true)
+            ->first();
     }
 
     public function activeAccounts(): HasMany

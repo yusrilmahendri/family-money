@@ -42,7 +42,7 @@
             'tone' => 'blue',
             'label' => 'Total Saldo',
             'value' => $totalSaldo,
-            'hint' => 'Saldo keseluruhan saat ini',
+            'hint' => 'Hanya Kas/Rekening aktif',
         ])
 
         @if($entity->isFamily())

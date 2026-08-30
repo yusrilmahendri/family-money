@@ -26,7 +26,7 @@ class FinanceBalanceAuditCommand extends Command
     ): int {
         $this->info('Finance Account Balance Audit');
         $this->line('Read-only. Formula: opening + income + transfer_in + capital_in + withdrawal_in + distribution_in + receivable_in - transaction - debt_payment - goal_contribution - budget_activity - transfer_out - capital_out - withdrawal_out - distribution_out.');
-        $this->line('Budget headers are not outflow. Transfers, capital, prive, profit distribution, and unpaid receivable principal are not income/expense. Inactive accounts are included. saldos are not used.');
+        $this->line('Budget headers are not outflow. Transfers, capital, prive, profit distribution, and unpaid receivable principal are not income/expense. Individual inactive balances are kept; operating totals use active accounts only. saldos are not used.');
         $this->newLine();
 
         $tableRows = [];
@@ -48,8 +48,8 @@ class FinanceBalanceAuditCommand extends Command
             ->get()
             ->each(function (FinanceEntity $entity) use ($balances, &$tableRows, &$entityTotals, &$newAll, &$openingAll, &$formulaMismatch, &$cross): void {
                 $summary = $balances->summary($entity);
-                $entityTotals[] = [$entity->name, $entity->slug, number_format($summary['total'], 2, '.', '')];
-                $newAll += $summary['total'];
+                $entityTotals[] = [$entity->name, $entity->slug, number_format($summary['operating_total'], 2, '.', '')];
+                $newAll += $summary['all_total'];
 
                 foreach ($summary['rows'] as $row) {
                     $account = $row['account'];

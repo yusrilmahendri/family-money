@@ -29,6 +29,7 @@ class EntityReportService
      * Single source of truth for dashboard, report, export, and AI.
      *
      * Balance and outstanding stocks are current (all-time derived).
+     * Operating Total Saldo sums ACTIVE accounts only. Historical movements keep inactive accounts.
      * Flow metrics use the inclusive domain-date range.
      *
      * @return array<string, mixed>

@@ -290,6 +290,78 @@ it('rejects events when the entity has no active default account', function () {
     ], $entity), integrationHeaders())->assertStatus(422);
 });
 
+it('routes plantation cash postings only to the active default account', function () {
+    $entity = FinanceEntity::factory()->business()->create();
+    $inactive = cashAccount($entity, 'Kas Lama Kebun', 5_000_000);
+    $active = app(\App\Services\FinanceAccountService::class)->create($entity, [
+        'name' => 'Kas Aktif Kebun',
+        'type' => \App\Enums\FinanceAccountType::CASH,
+        'opening_balance' => 1_000_000,
+    ]);
+    app(\App\Services\FinanceAccountService::class)->deactivate($inactive);
+    PlantationIntegration::query()->create([
+        'finance_entity_id' => $entity->id,
+        'plantation_entity_public_id' => INTEGRATION_PLANTATION_ID,
+        'status' => PlantationIntegrationStatus::ACTIVE,
+    ]);
+
+    expect($entity->fresh()->defaultAccount()?->id)->toBe($active->id)
+        ->and($inactive->fresh()->is_active)->toBeFalse();
+
+    $purchaseId = (string) Str::ulid();
+    $this->postJson('/api/internal/plantation/events', integrationEnvelope(IntegrationEventType::PLANTATION_PURCHASE_POSTED, $purchaseId, [
+        'purchase_public_id' => $purchaseId,
+        'purchase_date' => now()->toDateString(),
+        'amount' => '100000',
+        'supplier' => ['name' => 'CV Tani'],
+    ], $entity), integrationHeaders())->assertOk();
+
+    $payrollId = (string) Str::ulid();
+    $this->postJson('/api/internal/plantation/events', integrationEnvelope(IntegrationEventType::PLANTATION_PAYROLL_PAID, $payrollId, [
+        'payroll_public_id' => $payrollId,
+        'worker_name' => 'Budi',
+        'work_activity_title' => 'Panen',
+        'amount' => '50000',
+        'paid_at' => now()->toIso8601String(),
+    ], $entity), integrationHeaders())->assertOk();
+
+    $saleId = (string) Str::ulid();
+    $this->postJson('/api/internal/plantation/events', integrationEnvelope(IntegrationEventType::HARVEST_SALE_POSTED, $saleId, [
+        'sale_public_id' => $saleId,
+        'sale_date' => now()->toDateString(),
+        'buyer' => ['name' => 'PT Sawit'],
+        'total_amount' => '200000.00',
+        'items' => [],
+    ], $entity), integrationHeaders())->assertOk();
+
+    $payId = (string) Str::ulid();
+    $this->postJson('/api/internal/plantation/events', integrationEnvelope(IntegrationEventType::HARVEST_SALE_PAYMENT_RECEIVED, $payId, [
+        'payment_public_id' => $payId,
+        'sale_public_id' => $saleId,
+        'payment_date' => now()->toDateString(),
+        'amount' => '200000.00',
+        'payment_method' => 'CASH',
+    ], $entity), integrationHeaders())->assertOk();
+
+    expect(Transaction::query()->where('finance_account_id', $inactive->id)->count())->toBe(0)
+        ->and(Transaction::query()->where('finance_account_id', $active->id)->count())->toBe(2)
+        ->and(ReceivablePayment::query()->where('finance_account_id', $inactive->id)->count())->toBe(0)
+        ->and(ReceivablePayment::query()->where('finance_account_id', $active->id)->count())->toBe(1);
+
+    app(\App\Services\FinanceAccountService::class)->deactivate($active);
+
+    $this->postJson('/api/internal/plantation/events', integrationEnvelope(IntegrationEventType::PLANTATION_PURCHASE_POSTED, (string) Str::ulid(), [
+        'purchase_public_id' => (string) Str::ulid(),
+        'purchase_date' => now()->toDateString(),
+        'amount' => '1000',
+        'supplier' => ['name' => 'A'],
+    ], $entity), integrationHeaders())
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'Entity belum memiliki akun default yang aktif.');
+
+    expect(Transaction::query()->where('finance_account_id', $inactive->id)->count())->toBe(0);
+});
+
 it('does not allow an event to target another finance entity', function () {
     [$entity] = integrationBusiness();
     $other = FinanceEntity::factory()->business()->create();
