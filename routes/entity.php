@@ -43,6 +43,7 @@ Route::middleware('entity.access')->prefix('e/{financeEntity}')->name('entity.')
     Route::post('accounts/{account}/activate', [EntityAccountController::class, 'activate'])->name('accounts.activate');
     Route::post('accounts/{account}/deactivate', [EntityAccountController::class, 'deactivate'])->name('accounts.deactivate');
     Route::post('accounts/{account}/set-default', [EntityAccountController::class, 'setDefault'])->name('accounts.set-default');
+    Route::delete('accounts/{account}', [EntityAccountController::class, 'destroy'])->name('accounts.destroy');
 
     Route::get('transfers', [EntityTransferController::class, 'index'])->name('transfers.index');
     Route::get('transfers/create', [EntityTransferController::class, 'create'])->name('transfers.create');

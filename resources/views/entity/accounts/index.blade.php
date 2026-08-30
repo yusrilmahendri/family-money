@@ -53,6 +53,15 @@
                             @else
                                 <form action="{{ route('entity.accounts.activate', [$entity, $account]) }}" method="POST">@csrf<button class="btn btn-success btn-xs">Aktifkan</button></form>
                             @endif
+                            @if($account->can_delete)
+                                <form action="{{ route('entity.accounts.destroy', [$entity, $account]) }}" method="POST" onsubmit="return confirm(@js("Hapus rekening ini?\n\nRekening hanya dapat dihapus jika belum pernah digunakan dalam transaksi atau histori keuangan. Tindakan ini tidak dapat dibatalkan."))">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-danger btn-xs">Hapus</button>
+                                </form>
+                            @else
+                                <button type="button" class="btn btn-danger btn-xs" disabled title="{{ $account->delete_disabled_title }}">Hapus</button>
+                            @endif
                         </div>
                     </td>
                 </tr>

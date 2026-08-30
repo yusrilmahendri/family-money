@@ -5,13 +5,34 @@ namespace App\Services;
 use App\Enums\AuditAction;
 use App\Enums\FinanceAccountType;
 use App\Enums\FinanceEntityType;
+use App\Models\BudgetActivity;
+use App\Models\BusinessCapitalContribution;
+use App\Models\DebtPayment;
 use App\Models\FinanceAccount;
 use App\Models\FinanceEntity;
+use App\Models\FinanceTransfer;
+use App\Models\GoalContribution;
+use App\Models\Income;
+use App\Models\OwnerWithdrawal;
+use App\Models\ProfitDistribution;
+use App\Models\ReceivablePayment;
+use App\Models\RecurringTransaction;
+use App\Models\Transaction;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 class FinanceAccountService
 {
+    public const DELETE_BLOCKED_HISTORY = 'Rekening tidak dapat dihapus karena sudah memiliki histori transaksi. Gunakan fitur Nonaktifkan agar histori keuangan tetap terjaga.';
+
+    public const DELETE_BLOCKED_DEFAULT = 'Rekening default tidak dapat dihapus. Tetapkan rekening lain sebagai default terlebih dahulu.';
+
+    public const DELETE_BLOCKED_SOLE = 'Rekening ini tidak dapat dihapus karena merupakan satu-satunya rekening pada entitas.';
+
+    public const DELETE_TOOLTIP_HISTORY = 'Tidak dapat dihapus karena memiliki histori transaksi.';
+
     public function __construct(private readonly AuditLogService $audit) {}
 
     public function defaultNameFor(FinanceEntity $entity): string
@@ -204,6 +225,187 @@ class FinanceAccountService
 
             return $fresh;
         });
+    }
+
+    public function hasFinancialHistory(FinanceAccount $account): bool
+    {
+        if ($this->hasNonZeroOpeningBalance($account)) {
+            return true;
+        }
+
+        $accountId = (int) $account->id;
+
+        foreach ($this->financialHistoryBindings() as [$model, $column]) {
+            if ($model::query()->where($column, $accountId)->exists()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function canBeDeleted(FinanceAccount $account): bool
+    {
+        return $this->deleteBlockReason($account) === null;
+    }
+
+    public function deleteBlockReason(FinanceAccount $account, ?bool $hasHistory = null, ?bool $hasSiblingAccount = null): ?string
+    {
+        if ($hasHistory ?? $this->hasFinancialHistory($account)) {
+            return self::DELETE_BLOCKED_HISTORY;
+        }
+
+        if ($account->is_default) {
+            return self::DELETE_BLOCKED_DEFAULT;
+        }
+
+        $hasSibling = $hasSiblingAccount ?? FinanceAccount::query()
+            ->where('finance_entity_id', $account->finance_entity_id)
+            ->where('id', '!=', $account->id)
+            ->exists();
+
+        if (! $hasSibling) {
+            return self::DELETE_BLOCKED_SOLE;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  Collection<int, FinanceAccount>  $accounts
+     */
+    public function annotateDeletionEligibility(Collection $accounts): void
+    {
+        $historyIds = array_flip($this->accountIdsWithFinancialHistory($accounts));
+        $hasSibling = $accounts->count() > 1;
+
+        foreach ($accounts as $account) {
+            $reason = $this->deleteBlockReason(
+                $account,
+                isset($historyIds[(int) $account->id]),
+                $hasSibling,
+            );
+
+            $account->setAttribute('can_delete', $reason === null);
+            $account->setAttribute('delete_disabled_title', match ($reason) {
+                self::DELETE_BLOCKED_HISTORY => self::DELETE_TOOLTIP_HISTORY,
+                self::DELETE_BLOCKED_DEFAULT => self::DELETE_BLOCKED_DEFAULT,
+                self::DELETE_BLOCKED_SOLE => self::DELETE_BLOCKED_SOLE,
+                default => null,
+            });
+        }
+    }
+
+    public function deleteAccount(FinanceEntity $entity, FinanceAccount $account): void
+    {
+        abort_unless((int) $account->finance_entity_id === (int) $entity->id, 404);
+
+        DB::transaction(function () use ($entity, $account): void {
+            $locked = FinanceAccount::query()
+                ->whereKey($account->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless((int) $locked->finance_entity_id === (int) $entity->id, 404);
+
+            $reason = $this->deleteBlockReason($locked);
+
+            if ($reason !== null) {
+                throw new InvalidArgumentException($reason);
+            }
+
+            $old = $this->audit->snapshot($locked);
+
+            try {
+                $locked->delete();
+            } catch (QueryException) {
+                throw new InvalidArgumentException(self::DELETE_BLOCKED_HISTORY);
+            }
+
+            $this->audit->recordDeleted($locked, $old, $entity);
+        });
+    }
+
+    /**
+     * @param  Collection<int, FinanceAccount>|iterable<int, FinanceAccount|int>  $accounts
+     * @return list<int>
+     */
+    public function accountIdsWithFinancialHistory(iterable $accounts): array
+    {
+        $ids = [];
+        $used = [];
+
+        foreach ($accounts as $account) {
+            $id = (int) (is_object($account) ? $account->id : $account);
+            $ids[] = $id;
+
+            if (is_object($account) && $this->hasNonZeroOpeningBalance($account)) {
+                $used[$id] = true;
+            }
+        }
+
+        $ids = array_values(array_unique($ids));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        if ($used === []) {
+            FinanceAccount::query()
+                ->whereIn('id', $ids)
+                ->where('opening_balance', '!=', 0)
+                ->pluck('id')
+                ->each(function ($id) use (&$used): void {
+                    $used[(int) $id] = true;
+                });
+        }
+
+        foreach ($this->financialHistoryBindings() as [$model, $column]) {
+            $remaining = array_values(array_filter($ids, fn (int $id): bool => ! isset($used[$id])));
+
+            if ($remaining === []) {
+                break;
+            }
+
+            $model::query()
+                ->whereIn($column, $remaining)
+                ->distinct()
+                ->pluck($column)
+                ->each(function ($id) use (&$used): void {
+                    $used[(int) $id] = true;
+                });
+        }
+
+        return array_keys($used);
+    }
+
+    /**
+     * @return list<array{0: class-string, 1: string}>
+     */
+    private function financialHistoryBindings(): array
+    {
+        return [
+            [Transaction::class, 'finance_account_id'],
+            [Income::class, 'finance_account_id'],
+            [RecurringTransaction::class, 'finance_account_id'],
+            [DebtPayment::class, 'finance_account_id'],
+            [ReceivablePayment::class, 'finance_account_id'],
+            [GoalContribution::class, 'finance_account_id'],
+            [BudgetActivity::class, 'finance_account_id'],
+            [FinanceTransfer::class, 'source_account_id'],
+            [FinanceTransfer::class, 'destination_account_id'],
+            [BusinessCapitalContribution::class, 'source_account_id'],
+            [BusinessCapitalContribution::class, 'destination_account_id'],
+            [OwnerWithdrawal::class, 'source_account_id'],
+            [OwnerWithdrawal::class, 'destination_account_id'],
+            [ProfitDistribution::class, 'source_account_id'],
+            [ProfitDistribution::class, 'destination_account_id'],
+        ];
+    }
+
+    private function hasNonZeroOpeningBalance(FinanceAccount $account): bool
+    {
+        return abs((float) $account->opening_balance) >= 0.01;
     }
 
     private function clearDefault(FinanceEntity $entity, ?int $exceptId = null): void

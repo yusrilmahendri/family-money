@@ -114,12 +114,12 @@ it('returns 404 when admin opens an account from another entity url', function (
         ->assertNotFound();
 });
 
-it('does not expose a destructive delete route for finance accounts', function () {
+it('does not expose a destructive delete route for admin finance accounts', function () {
     $entity = FinanceEntity::factory()->family()->create();
     $account = app(FinanceAccountService::class)->ensureDefaultAccount($entity);
 
     expect(Route::has('admin.finance-entities.accounts.destroy'))->toBeFalse()
-        ->and(Route::has('entity.accounts.destroy'))->toBeFalse();
+        ->and(Route::has('entity.accounts.destroy'))->toBeTrue();
 
     $response = actingAccountAdmin()->delete(
         '/admin/finance-entities/'.$entity->public_id.'/accounts/'.$account->public_id

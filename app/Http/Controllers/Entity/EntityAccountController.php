@@ -24,6 +24,7 @@ class EntityAccountController extends Controller
     public function index(FinanceEntity $financeEntity): View
     {
         $summary = $this->balances->summary($financeEntity);
+        $this->accounts->annotateDeletionEligibility($summary['accounts']);
 
         return view('entity.accounts.index', [
             'entity' => $financeEntity,
@@ -118,6 +119,23 @@ class EntityAccountController extends Controller
         return redirect()
             ->route('entity.accounts.index', $financeEntity)
             ->with('success', 'Account default diperbarui.');
+    }
+
+    public function destroy(FinanceEntity $financeEntity, FinanceAccount $account): RedirectResponse
+    {
+        $this->owned($financeEntity, $account);
+
+        try {
+            $this->accounts->deleteAccount($financeEntity, $account);
+        } catch (InvalidArgumentException $exception) {
+            return redirect()
+                ->route('entity.accounts.index', $financeEntity)
+                ->with('danger', $exception->getMessage());
+        }
+
+        return redirect()
+            ->route('entity.accounts.index', $financeEntity)
+            ->with('success', 'Rekening berhasil dihapus.');
     }
 
     private function owned(FinanceEntity $entity, FinanceAccount $account): void

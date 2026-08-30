@@ -113,6 +113,7 @@ it('returns 404 when a private user opens another entity account', function () {
     $this->post(route('entity.accounts.activate', [$entityA, $foreign]))->assertNotFound();
     $this->post(route('entity.accounts.deactivate', [$entityA, $foreign]))->assertNotFound();
     $this->post(route('entity.accounts.set-default', [$entityA, $foreign]))->assertNotFound();
+    $this->delete(route('entity.accounts.destroy', [$entityA, $foreign]))->assertNotFound();
 });
 
 it('allows a private user to edit activate deactivate and set default on the owned entity', function () {
