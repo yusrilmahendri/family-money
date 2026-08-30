@@ -135,6 +135,7 @@ class EntityReportMovementSheet implements FromCollection, WithHeadings, WithTit
             $row['date'],
             $row['type'],
             $row['description'],
+            $row['detail_description'] ?? '',
             $row['account'],
             $row['amount'],
             $row['direction'],
@@ -143,7 +144,7 @@ class EntityReportMovementSheet implements FromCollection, WithHeadings, WithTit
 
     public function headings(): array
     {
-        return ['Tanggal', 'Jenis', 'Keterangan', 'Kas/Rekening', 'Jumlah', 'Arah'];
+        return ['Tanggal', 'Jenis', 'Keterangan', 'Detail Pengeluaran', 'Kas/Rekening', 'Jumlah', 'Arah'];
     }
 
     public function title(): string

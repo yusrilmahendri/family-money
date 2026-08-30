@@ -76,6 +76,7 @@ class RecurringTransactionRunner
                             'transaction_date' => $rt->next_due,
                             'description' => '[Otomatis] '.$rt->name,
                             'keterangan_detail' => $rt->description,
+                            'detail_description' => $rt->description,
                         ]);
 
                         $rt->last_posted_at = $rt->next_due;

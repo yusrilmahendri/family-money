@@ -73,4 +73,34 @@
             </tbody>
         </table>
     </div>
+
+    <h4>Mutasi</h4>
+    <div class="entity-table-responsive">
+        <table class="table table-bordered entity-table entity-table--stackable">
+            <thead>
+                <tr>
+                    <th>Tanggal</th>
+                    <th>Jenis</th>
+                    <th>Keterangan</th>
+                    <th>Detail Pengeluaran</th>
+                    <th>Kas/Rekening</th>
+                    <th>Jumlah</th>
+                </tr>
+            </thead>
+            <tbody>
+            @forelse($report['movements'] as $movement)
+                <tr>
+                    <td data-label="Tanggal">{{ $movement['date'] }}</td>
+                    <td data-label="Jenis">{{ $movement['type'] }}</td>
+                    <td data-label="Keterangan" class="entity-table-text">{{ $movement['description'] ?: '—' }}</td>
+                    <td data-label="Detail Pengeluaran" class="entity-table-text entity-table-detail">{{ ($movement['type'] === 'Pengeluaran' ? ($movement['detail_description'] ?: '—') : '—') }}</td>
+                    <td data-label="Kas/Rekening">{{ $movement['account'] ?: '—' }}</td>
+                    <td data-label="Jumlah" class="entity-money">{{ rupiah($movement['amount']) }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="6" class="entity-table-empty">Belum ada mutasi.</td></tr>
+            @endforelse
+            </tbody>
+        </table>
+    </div>
 @endsection

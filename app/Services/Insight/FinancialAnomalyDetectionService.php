@@ -503,7 +503,7 @@ class FinancialAnomalyDetectionService
     }
 
     /**
-     * @return list<array{id: string, amount: float, date: string, category: string, category_id: ?int, description: string}>
+     * @return list<array{id: string, amount: float, date: string, category: string, category_id: ?int, description: string, detail_description?: ?string}>
      */
     private function periodExpenses(FinanceEntity $entity, ?string $from, ?string $to): array
     {
@@ -520,6 +520,7 @@ class FinancialAnomalyDetectionService
                     'category' => $transaction->category?->name ?: 'Tanpa Kategori',
                     'category_id' => $transaction->category_id,
                     'description' => (string) $transaction->description,
+                    'detail_description' => $transaction->resolvedDetailDescription(),
                 ])
                 ->all();
         }

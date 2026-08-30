@@ -159,6 +159,7 @@ class TransactionsController extends Controller
             'transaction_date' => $validated['date'],
             'description' => $validated['description'] ?? null,
             'keterangan_detail' => $validated['keterangan_detail'] ?? null,
+            'detail_description' => $validated['keterangan_detail'] ?? null,
             'nota' => $notaFile,
         ]);
 
@@ -295,6 +296,7 @@ class TransactionsController extends Controller
                 'description' => $validated['description'] ?? null,
                 'transaction_date' => $validated['date'],
                 'keterangan_detail' => $validated['keterangan_detail'] ?? null,
+                'detail_description' => $validated['keterangan_detail'] ?? null,
             ]);
 
             if ($request->hasFile('nota')) {

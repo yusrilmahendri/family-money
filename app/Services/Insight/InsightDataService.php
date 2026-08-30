@@ -572,7 +572,7 @@ class InsightDataService
             ->whereDate('transaction_date', '>=', $since)->orderByDesc('transaction_date')->limit(50)->get()
             ->map(fn ($t) => [
                 'tanggal' => optional($t->transaction_date)->format('Y-m-d'),
-                'keterangan' => $t->description,
+                'keterangan' => $t->insightDescriptionLabel(),
                 'kategori' => $t->category?->name,
                 'jumlah' => (float) $t->amount,
             ])->all();

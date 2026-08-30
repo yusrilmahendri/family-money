@@ -183,7 +183,16 @@ class EntityInsightDataService
             'piutang' => $payload['receivable'],
             'kategori' => $payload['category_breakdown'],
             'kategori_pemasukan' => $payload['income_category_breakdown'] ?? [],
-            'aktivitas_terbaru' => array_slice($payload['recent_activity'], 0, 8),
+            'aktivitas_terbaru' => collect(array_slice($payload['recent_activity'], 0, 8))
+                ->map(function (array $row): array {
+                    if (($row['type'] ?? '') === 'Pengeluaran' && filled($row['detail_description'] ?? null)) {
+                        $row['keterangan'] = 'Deskripsi: '.(($row['description'] ?? '') !== '' ? $row['description'] : '—')
+                            ."\nDetail: ".$row['detail_description'];
+                    }
+
+                    return $row;
+                })
+                ->all(),
             'ringkasan' => $structured['ai_context']['ringkasan'],
             'anomali' => $structured['ai_context']['anomali'],
             'data_priority' => [

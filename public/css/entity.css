@@ -884,6 +884,14 @@
   word-break: break-word;
 }
 
+.entity-table-detail {
+  max-width: 28rem;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+
 .entity-money {
   white-space: nowrap;
   overflow-wrap: normal;

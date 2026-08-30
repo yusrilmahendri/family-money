@@ -182,6 +182,7 @@ class PlantationIntegrationEventService
             'amount' => $amount,
             'transaction_date' => $payload['purchase_date'] ?? now()->toDateString(),
             'description' => $description,
+            'detail_description' => $this->purchaseDetailDescription($payload, is_string($supplier) ? $supplier : null),
         ]);
         $this->audit->recordCreated($transaction, $entity, AuditActorType::SYSTEM);
         $this->storeReference($entity, IntegrationEventType::PLANTATION_PURCHASE_POSTED, $source, ExternalFinancialRecordType::TRANSACTION, (int) $transaction->id);
@@ -243,6 +244,7 @@ class PlantationIntegrationEventService
             'amount' => $amount,
             'transaction_date' => isset($payload['paid_at']) ? substr((string) $payload['paid_at'], 0, 10) : now()->toDateString(),
             'description' => $description,
+            'detail_description' => $this->payrollDetailDescription($payload),
         ]);
         $this->audit->recordCreated($transaction, $entity, AuditActorType::SYSTEM);
         $this->storeReference($entity, IntegrationEventType::PLANTATION_PAYROLL_PAID, $source, ExternalFinancialRecordType::TRANSACTION, (int) $transaction->id);
@@ -456,5 +458,51 @@ class PlantationIntegrationEventService
             'result_type' => ExternalFinancialRecordType::TRANSACTION->value,
             'result_public_id' => (string) $transaction->id,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function purchaseDetailDescription(array $payload, ?string $supplier): ?string
+    {
+        $note = trim((string) ($payload['description'] ?? ''));
+        $supplier = is_string($supplier) ? trim($supplier) : '';
+
+        if ($note !== '' && $supplier !== '') {
+            return 'Pembelian '.$note.' dari '.$supplier;
+        }
+
+        if ($note !== '') {
+            return $note;
+        }
+
+        if ($supplier !== '') {
+            return 'Pembelian dari '.$supplier;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function payrollDetailDescription(array $payload): ?string
+    {
+        $worker = trim((string) ($payload['worker_name'] ?? ''));
+        $activity = trim((string) ($payload['work_activity_title'] ?? ''));
+
+        if ($worker !== '' && $activity !== '') {
+            return $worker.' — '.$activity;
+        }
+
+        if ($worker !== '') {
+            return $worker;
+        }
+
+        if ($activity !== '') {
+            return $activity;
+        }
+
+        return null;
     }
 }

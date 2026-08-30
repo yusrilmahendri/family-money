@@ -143,6 +143,7 @@ class RecurringTransactionController extends Controller
             'transaction_date' => Carbon::today(),
             'description' => '[Manual posting] '.$recurring->name,
             'keterangan_detail' => $recurring->description,
+            'detail_description' => $recurring->description,
         ]);
 
         $recurring->last_posted_at = Carbon::today();

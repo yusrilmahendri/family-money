@@ -61,13 +61,14 @@
 
     <h3>Mutasi</h3>
     <table>
-        <thead><tr><th>Tanggal</th><th>Jenis</th><th>Keterangan</th><th>Jumlah</th></tr></thead>
+        <thead><tr><th>Tanggal</th><th>Jenis</th><th>Keterangan</th><th>Detail Pengeluaran</th><th>Jumlah</th></tr></thead>
         <tbody>
         @foreach($report['movements'] as $movement)
             <tr>
                 <td>{{ $movement['date'] }}</td>
                 <td>{{ $movement['type'] }}</td>
                 <td>{{ $movement['description'] }}</td>
+                <td>{{ $movement['type'] === 'Pengeluaran' ? ($movement['detail_description'] ?: '—') : '—' }}</td>
                 <td>{{ rupiah($movement['amount']) }}</td>
             </tr>
         @endforeach

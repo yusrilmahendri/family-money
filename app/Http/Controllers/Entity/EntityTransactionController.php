@@ -18,16 +18,27 @@ class EntityTransactionController extends Controller
 {
     use AssignsFinanceAccount, ParsesRupiah, RecordsAudit;
 
-    public function index(FinanceEntity $financeEntity): View
+    public function index(Request $request, FinanceEntity $financeEntity): View
     {
+        $search = trim((string) $request->query('q', ''));
+
         $transactions = $financeEntity->transactions()
-            ->with('financeAccount')
+            ->with(['financeAccount', 'category'])
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($inner) use ($search): void {
+                    $inner->where('description', 'like', '%'.$search.'%')
+                        ->orWhere('detail_description', 'like', '%'.$search.'%')
+                        ->orWhere('keterangan_detail', 'like', '%'.$search.'%');
+                });
+            })
             ->latest('transaction_date')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         return view('entity.transactions.index', [
             'entity' => $financeEntity,
             'transactions' => $transactions,
+            'search' => $search,
             'title' => 'Pengeluaran',
         ]);
     }
@@ -46,15 +57,7 @@ class EntityTransactionController extends Controller
     {
         $validated = $this->validated($request, $financeEntity);
 
-        $transaction = $financeEntity->transactions()->create([
-            'finance_account_id' => $this->resolvedAccountId($validated, $financeEntity),
-            'category_id' => $validated['category_id'] ?? null,
-            'context' => FinanceOwnership::contextFor($financeEntity),
-            'amount' => $this->parseRupiah($validated['amount']),
-            'transaction_date' => $validated['transaction_date'],
-            'description' => $validated['description'] ?? null,
-            'keterangan_detail' => $validated['keterangan_detail'] ?? null,
-        ]);
+        $transaction = $financeEntity->transactions()->create($this->transactionAttributes($validated, $financeEntity));
         $this->auditLogs()->recordCreated($transaction, $financeEntity);
 
         return redirect()
@@ -81,15 +84,7 @@ class EntityTransactionController extends Controller
         $validated = $this->validated($request, $financeEntity, $transaction->finance_account_id);
         $old = $this->auditLogs()->snapshot($transaction);
 
-        $transaction->update([
-            'finance_account_id' => $this->resolvedAccountId($validated, $financeEntity),
-            'category_id' => $validated['category_id'] ?? null,
-            'context' => FinanceOwnership::contextFor($financeEntity),
-            'amount' => $this->parseRupiah($validated['amount']),
-            'transaction_date' => $validated['transaction_date'],
-            'description' => $validated['description'] ?? null,
-            'keterangan_detail' => $validated['keterangan_detail'] ?? null,
-        ]);
+        $transaction->update($this->transactionAttributes($validated, $financeEntity));
         $this->auditLogs()->recordUpdated($transaction->fresh(), $old, $financeEntity);
 
         return redirect()
@@ -118,11 +113,32 @@ class EntityTransactionController extends Controller
             'amount' => $this->positiveRupiahRules(),
             'transaction_date' => ['required', 'date'],
             'description' => ['nullable', 'string', 'max:255'],
-            'keterangan_detail' => ['nullable', 'string'],
+            'detail_description' => ['nullable', 'string', 'max:2000'],
             'category_id' => ['nullable', Rule::exists('categories', 'id')->where('finance_entity_id', $entity->id)],
             'finance_entity_id' => ['prohibited'],
             ...$this->financeAccountRules($entity, $currentAccountId),
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function transactionAttributes(array $validated, FinanceEntity $entity): array
+    {
+        $detail = isset($validated['detail_description']) && is_string($validated['detail_description'])
+            ? trim($validated['detail_description'])
+            : null;
+
+        return [
+            'finance_account_id' => $this->resolvedAccountId($validated, $entity),
+            'category_id' => $validated['category_id'] ?? null,
+            'context' => FinanceOwnership::contextFor($entity),
+            'amount' => $this->parseRupiah($validated['amount']),
+            'transaction_date' => $validated['transaction_date'],
+            'description' => $validated['description'] ?? null,
+            'detail_description' => $detail === '' ? null : $detail,
+        ];
     }
 
     private function owned(FinanceEntity $entity, Transaction $transaction): void
