@@ -1644,3 +1644,110 @@
     text-align: left;
   }
 }
+
+/* Pengeluaran index: scoped so global table wrapping does not break words. */
+.table-responsive.entity-table-responsive:has(.expense-table) {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.expense-toolbar {
+  align-items: flex-end;
+}
+
+.expense-toolbar .expense-toolbar-search {
+  flex: 1 1 280px;
+  min-width: 0;
+  max-width: 420px;
+}
+
+.expense-toolbar-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.entity-table.expense-table {
+  table-layout: auto;
+  width: 100%;
+  min-width: 920px;
+}
+
+.entity-table.expense-table th,
+.entity-table.expense-table td {
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+  vertical-align: top;
+}
+
+.entity-table.expense-table .expense-col-date {
+  width: 120px;
+  min-width: 110px;
+  white-space: nowrap;
+}
+
+.entity-table.expense-table .expense-col-description {
+  width: 150px;
+  min-width: 130px;
+  white-space: nowrap;
+}
+
+.entity-table.expense-table .expense-col-detail {
+  min-width: 280px;
+  width: 40%;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.entity-table.expense-table .expense-col-account {
+  min-width: 170px;
+  width: 170px;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.entity-table.expense-table .expense-col-amount {
+  width: 140px;
+  min-width: 140px;
+  white-space: nowrap;
+}
+
+.entity-table.expense-table .expense-col-actions {
+  width: 120px;
+  min-width: 120px;
+  white-space: nowrap;
+}
+
+.expense-table-actions,
+.entity-table.expense-table .expense-table-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.entity-table.expense-table .expense-table-actions form {
+  display: inline;
+  margin: 0;
+}
+
+@media (max-width: 575.98px) {
+  .expense-toolbar .expense-toolbar-search {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+
+  .expense-toolbar-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .expense-toolbar-actions .btn,
+  .expense-toolbar-actions a.btn {
+    width: 100%;
+  }
+}

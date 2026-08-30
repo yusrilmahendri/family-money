@@ -127,7 +127,11 @@ it('shows detail on the expense index and a dash when null', function () {
         ->assertSee('ipong bayar ke 3')
         ->assertSee('TanpaDetailLama')
         ->assertSee('Kas Utama Keluarga')
-        ->assertSee('—');
+        ->assertSee('—')
+        ->assertSee('expense-table', false)
+        ->assertSee('table-responsive', false)
+        ->assertSee('expense-toolbar', false)
+        ->assertDontSee('entity-table--stackable', false);
 });
 
 it('rejects detail_description longer than 2000 characters', function () {
