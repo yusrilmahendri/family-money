@@ -110,7 +110,8 @@ class AuditLog extends Model
 
         if ($action === AuditAction::DELETE->value
             || $action === AuditAction::FINANCE_ENTITY_DELETED->value
-            || $action === AuditAction::ACCESS_LINK_DELETED->value) {
+            || $action === AuditAction::ACCESS_LINK_DELETED->value
+            || $action === AuditAction::PLANTATION_ACCESS_LINK_DELETED->value) {
             return $this->summarizeSnapshot($old, 'deleted');
         }
 

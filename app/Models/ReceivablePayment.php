@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\ReceivablePaymentSourceType;
+use App\Enums\ReceivablePaymentStatus;
 use App\Models\Concerns\BelongsToFinanceAccount;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +15,10 @@ class ReceivablePayment extends Model
     /** @use HasFactory<\Database\Factories\ReceivablePaymentFactory> */
     use BelongsToFinanceAccount, HasFactory;
 
+    protected $attributes = [
+        'status' => 'ACTIVE',
+    ];
+
     /**
      * @var list<string>
      */
@@ -22,6 +28,11 @@ class ReceivablePayment extends Model
         'amount',
         'payment_date',
         'description',
+        'source_type',
+        'source_public_id',
+        'status',
+        'reversed_at',
+        'reversed_reason',
     ];
 
     /**
@@ -32,6 +43,9 @@ class ReceivablePayment extends Model
         return [
             'amount' => 'decimal:2',
             'payment_date' => 'date',
+            'source_type' => ReceivablePaymentSourceType::class,
+            'status' => ReceivablePaymentStatus::class,
+            'reversed_at' => 'datetime',
         ];
     }
 

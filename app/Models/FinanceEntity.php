@@ -6,6 +6,7 @@ use App\Enums\FinanceEntityType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -90,6 +91,16 @@ class FinanceEntity extends Model
     public function getRouteKeyName(): string
     {
         return 'public_id';
+    }
+
+    public function plantationIntegration(): HasOne
+    {
+        return $this->hasOne(PlantationIntegration::class);
+    }
+
+    public function plantationOperatingBudgets(): HasMany
+    {
+        return $this->hasMany(PlantationOperatingBudget::class);
     }
 
     public function accessTokens(): HasMany

@@ -71,6 +71,7 @@ class FinanceAccountBalanceService
         $transactions = (float) Transaction::query()
             ->where('finance_account_id', $accountId)
             ->where('finance_entity_id', $entityId)
+            ->whereNull('reversed_at')
             ->sum('amount');
 
         $debtPayments = (float) DebtPayment::query()
@@ -130,6 +131,7 @@ class FinanceAccountBalanceService
 
         $receivableIn = (float) ReceivablePayment::query()
             ->where('finance_account_id', $accountId)
+            ->where('status', \App\Enums\ReceivablePaymentStatus::ACTIVE)
             ->whereHas('receivable', fn ($query) => $query->where('finance_entity_id', $entityId))
             ->sum('amount');
 
@@ -290,7 +292,7 @@ class FinanceAccountBalanceService
 
         return [
             'income' => $this->sumOwned($entityId, $ids, 'incomes'),
-            'transactions' => $this->sumOwned($entityId, $ids, 'transactions'),
+            'transactions' => $this->sumOwned($entityId, $ids, 'transactions', excludeReversed: true),
             'debt_payments' => $this->sumChild($ids, 'debt_payments', 'debts', 'debt_id', $entityId),
             'goal_contributions' => $this->sumChild($ids, 'goal_contributions', 'savings_goals', 'savings_goal_id', $entityId),
             'budget_activities' => $this->sumChild($ids, 'budget_activities', 'budgets', 'budget_id', $entityId),
@@ -302,7 +304,7 @@ class FinanceAccountBalanceService
             'withdrawal_out' => $this->sumWithdrawals($ids, 'source_account_id', 'business_entity_id', $entityId),
             'distribution_in' => $this->sumDistributions($ids, 'destination_account_id', 'family_entity_id', $entityId),
             'distribution_out' => $this->sumDistributions($ids, 'source_account_id', 'business_entity_id', $entityId),
-            'receivable_in' => $this->sumChild($ids, 'receivable_payments', 'receivables', 'receivable_id', $entityId),
+            'receivable_in' => $this->sumChild($ids, 'receivable_payments', 'receivables', 'receivable_id', $entityId, activePayments: true),
         ];
     }
 
@@ -310,12 +312,18 @@ class FinanceAccountBalanceService
      * @param  Collection<int, int>  $accountIds
      * @return array<int, float>
      */
-    private function sumOwned(int $entityId, Collection $accountIds, string $table): array
+    private function sumOwned(int $entityId, Collection $accountIds, string $table, bool $excludeReversed = false): array
     {
-        return DB::table($table)
+        $query = DB::table($table)
             ->select('finance_account_id', DB::raw('SUM(amount) as total'))
             ->where('finance_entity_id', $entityId)
-            ->whereIn('finance_account_id', $accountIds)
+            ->whereIn('finance_account_id', $accountIds);
+
+        if ($excludeReversed) {
+            $query->whereNull('reversed_at');
+        }
+
+        return $query
             ->groupBy('finance_account_id')
             ->pluck('total', 'finance_account_id')
             ->map(fn ($value) => (float) $value)
@@ -331,13 +339,20 @@ class FinanceAccountBalanceService
         string $table,
         string $parent,
         string $fk,
-        int $entityId
+        int $entityId,
+        bool $activePayments = false,
     ): array {
-        return DB::table($table)
+        $query = DB::table($table)
             ->select($table.'.finance_account_id', DB::raw('SUM('.$table.'.amount) as total'))
             ->join($parent, $parent.'.id', '=', $table.'.'.$fk)
             ->where($parent.'.finance_entity_id', $entityId)
-            ->whereIn($table.'.finance_account_id', $accountIds)
+            ->whereIn($table.'.finance_account_id', $accountIds);
+
+        if ($activePayments) {
+            $query->where($table.'.status', 'ACTIVE');
+        }
+
+        return $query
             ->groupBy($table.'.finance_account_id')
             ->pluck('total', 'finance_account_id')
             ->map(fn ($value) => (float) $value)

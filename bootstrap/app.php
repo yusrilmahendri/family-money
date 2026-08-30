@@ -4,6 +4,8 @@
 // Load helpers here so rupiah() exists even with a stale autoload_files.php.
 require_once __DIR__.'/../app/helpers.php';
 
+use App\Http\Middleware\AuthenticatePlantationService;
+use App\Http\Middleware\VerifyPlantationIntegrationHmac;
 use App\Http\Middleware\EnsureFinanceEntityAccess;
 use App\Http\Middleware\EnsureFinanceEntityType;
 use App\Http\Middleware\EnsureUserIsAdmin;
@@ -17,6 +19,7 @@ use Illuminate\Http\Request;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
@@ -32,6 +35,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => EnsureUserIsAdmin::class,
             'entity.access' => EnsureFinanceEntityAccess::class,
             'entity.type' => EnsureFinanceEntityType::class,
+            'internal.plantation' => AuthenticatePlantationService::class,
+            'internal.plantation.hmac' => VerifyPlantationIntegrationHmac::class,
         ]);
 
         $middleware->redirectGuestsTo(function (Request $request) {

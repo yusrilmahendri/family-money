@@ -12,10 +12,11 @@ class Transaction extends Model
     /** @use HasFactory<\Database\Factories\TransactionFactory> */
     use BelongsToFinanceAccount, BelongsToFinanceEntity, HasFactory;
 
-    protected $fillable = ['finance_entity_id', 'finance_account_id', 'category_id', 'context', 'amount', 'description', 'transaction_date', 'nota', 'keterangan_detail'];
+    protected $fillable = ['finance_entity_id', 'finance_account_id', 'category_id', 'context', 'amount', 'description', 'transaction_date', 'nota', 'keterangan_detail', 'reversed_at', 'reversed_reason'];
 
     protected $casts = [
         'transaction_date' => 'date',
+        'reversed_at' => 'datetime',
     ];
 
     public function category()

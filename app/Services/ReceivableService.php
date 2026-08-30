@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use App\Enums\AuditAction;
+use App\Enums\ReceivablePaymentSourceType;
+use App\Enums\ReceivablePaymentStatus;
+use App\Enums\ReceivableSourceType;
 use App\Enums\ReceivableStatus;
 use App\Models\FinanceAccount;
 use App\Models\FinanceEntity;
@@ -22,11 +25,27 @@ class ReceivableService
     public function __construct(private readonly AuditLogService $audit) {}
 
     /**
-     * @param  array{party_name: string, description?: ?string, principal_amount: float, receivable_date: mixed, due_date?: mixed}  $data
+     * @param  array{party_name: string, description?: ?string, principal_amount: float, receivable_date: mixed, due_date?: mixed, source_type?: ReceivableSourceType|string|null, source_public_id?: ?string}  $data
      */
     public function create(FinanceEntity $entity, array $data): Receivable
     {
         return DB::transaction(function () use ($entity, $data) {
+            $sourceType = $this->receivableSource($data['source_type'] ?? null);
+            $sourcePublicId = isset($data['source_public_id']) ? trim((string) $data['source_public_id']) : '';
+
+            if ($sourceType === ReceivableSourceType::HARVEST_SALE && $sourcePublicId !== '') {
+                $existing = Receivable::query()
+                    ->where('finance_entity_id', $entity->id)
+                    ->where('source_type', $sourceType)
+                    ->where('source_public_id', $sourcePublicId)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existing instanceof Receivable) {
+                    return $existing;
+                }
+            }
+
             $principal = (float) $data['principal_amount'];
 
             if ($principal <= 0) {
@@ -42,6 +61,8 @@ class ReceivableService
                 'remaining_balance' => $principal,
                 'receivable_date' => $data['receivable_date'],
                 'due_date' => $data['due_date'] ?? null,
+                'source_type' => $sourceType,
+                'source_public_id' => $sourcePublicId !== '' ? $sourcePublicId : null,
             ]);
             $receivable->finance_entity_id = $entity->id;
             $receivable->syncStatus();
@@ -98,11 +119,26 @@ class ReceivableService
     }
 
     /**
-     * @param  array{finance_account_id: int, amount: float, payment_date: mixed, description?: ?string}  $data
+     * @param  array{finance_account_id: int, amount: float, payment_date: mixed, description?: ?string, source_type?: ReceivablePaymentSourceType|string|null, source_public_id?: ?string}  $data
      */
     public function recordPayment(Receivable $receivable, array $data): ReceivablePayment
     {
         return DB::transaction(function () use ($receivable, $data) {
+            $sourceType = $this->paymentSource($data['source_type'] ?? null);
+            $sourcePublicId = isset($data['source_public_id']) ? trim((string) $data['source_public_id']) : '';
+
+            if ($sourceType === ReceivablePaymentSourceType::HARVEST_SALE_PAYMENT && $sourcePublicId !== '') {
+                $existing = ReceivablePayment::query()
+                    ->where('source_type', $sourceType)
+                    ->where('source_public_id', $sourcePublicId)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existing instanceof ReceivablePayment) {
+                    return $existing;
+                }
+            }
+
             $receivable = Receivable::query()->whereKey($receivable->id)->lockForUpdate()->firstOrFail();
             $amount = (float) $data['amount'];
 
@@ -137,6 +173,8 @@ class ReceivableService
                 'amount' => $amount,
                 'payment_date' => $data['payment_date'],
                 'description' => $data['description'] ?? null,
+                'source_type' => $sourceType,
+                'source_public_id' => $sourcePublicId !== '' ? $sourcePublicId : null,
             ]);
 
             $receivable->remaining_balance = round($remaining - $amount, 2);
@@ -149,14 +187,73 @@ class ReceivableService
         });
     }
 
+    public function reversePayment(ReceivablePayment $payment): void
+    {
+        DB::transaction(function () use ($payment) {
+            $locked = ReceivablePayment::query()->whereKey($payment->id)->lockForUpdate()->first();
+
+            if (! $locked instanceof ReceivablePayment) {
+                return;
+            }
+
+            $receivable = Receivable::query()->whereKey($locked->receivable_id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->status === ReceivablePaymentStatus::REVERSED) {
+                return;
+            }
+
+            $old = $this->audit->snapshot($locked);
+
+            $locked->status = ReceivablePaymentStatus::REVERSED;
+            $locked->reversed_at = now();
+            $locked->reversed_reason = 'Plantation payment reversed';
+            $locked->save();
+
+            $receivable->remaining_balance = round((float) $receivable->remaining_balance + (float) $locked->amount, 2);
+            $receivable->syncStatus();
+            $receivable->save();
+
+            $this->audit->recordUpdated($locked, $old, $receivable->financeEntity);
+        });
+    }
+
+    public function cancelUnpaid(Receivable $receivable, string $reason = 'Penjualan kebun dibatalkan'): void
+    {
+        DB::transaction(function () use ($receivable, $reason) {
+            $locked = Receivable::query()->whereKey($receivable->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->cancelled_at !== null) {
+                return;
+            }
+
+            if ($locked->activePayments()->exists()) {
+                throw ValidationException::withMessages([
+                    'receivable' => 'Piutang yang sudah memiliki pembayaran aktif tidak dapat dibatalkan.',
+                ]);
+            }
+
+            $old = $this->audit->snapshot($locked);
+            $locked->cancelled_at = now();
+            $locked->cancelled_reason = $reason;
+            $locked->save();
+            $this->audit->recordUpdated($locked, $old, $locked->financeEntity);
+        });
+    }
+
+    public function deleteUnpaid(Receivable $receivable): void
+    {
+        $this->cancelUnpaid($receivable);
+    }
+
     public function outstandingTotal(FinanceEntity $entity): float
     {
-        return (float) $entity->receivables()->sum('remaining_balance');
+        return (float) $entity->receivables()->whereNull('cancelled_at')->sum('remaining_balance');
     }
 
     public function overdueOutstanding(FinanceEntity $entity): float
     {
         return (float) $entity->receivables()
+            ->whereNull('cancelled_at')
             ->where('remaining_balance', '>', 0)
             ->whereNotNull('due_date')
             ->whereDate('due_date', '<', now()->toDateString())
@@ -186,7 +283,9 @@ class ReceivableService
         $invalidStatus = 0;
         $unmarkedOverdue = 0;
 
-        Receivable::query()->withSum('payments', 'amount')->each(function (Receivable $receivable) use (&$paymentMismatch, &$invalidStatus, &$unmarkedOverdue): void {
+        Receivable::query()->withSum(['payments as payments_sum_amount' => function ($query): void {
+            $query->where('status', ReceivablePaymentStatus::ACTIVE);
+        }], 'amount')->each(function (Receivable $receivable) use (&$paymentMismatch, &$invalidStatus, &$unmarkedOverdue): void {
             $paid = (float) ($receivable->payments_sum_amount ?? 0);
             $expected = round((float) $receivable->principal_amount - $paid, 2);
 
@@ -242,5 +341,31 @@ class ReceivableService
     public function hasCriticalInconsistencies(): bool
     {
         return array_sum($this->audit()) > 0;
+    }
+
+    private function receivableSource(mixed $value): ?ReceivableSourceType
+    {
+        if ($value instanceof ReceivableSourceType) {
+            return $value;
+        }
+
+        if (is_string($value) && $value !== '') {
+            return ReceivableSourceType::tryFrom($value);
+        }
+
+        return null;
+    }
+
+    private function paymentSource(mixed $value): ?ReceivablePaymentSourceType
+    {
+        if ($value instanceof ReceivablePaymentSourceType) {
+            return $value;
+        }
+
+        if (is_string($value) && $value !== '') {
+            return ReceivablePaymentSourceType::tryFrom($value);
+        }
+
+        return null;
     }
 }

@@ -17,6 +17,8 @@ use App\Models\FinanceTransfer;
 use App\Models\GoalContribution;
 use App\Models\Income;
 use App\Models\OwnerWithdrawal;
+use App\Models\PlantationIntegration;
+use App\Models\PlantationOperatingBudget;
 use App\Models\ProfitDistribution;
 use App\Models\Receivable;
 use App\Models\ReceivablePayment;
@@ -100,6 +102,8 @@ class AdminAuditLogController extends Controller
             ProfitDistribution::class,
             Receivable::class,
             ReceivablePayment::class,
+            PlantationIntegration::class,
+            PlantationOperatingBudget::class,
         ];
 
         return collect($types)

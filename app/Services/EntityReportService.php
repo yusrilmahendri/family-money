@@ -137,17 +137,19 @@ class EntityReportService
             $this->monthSums($entity->ownerWithdrawalsReceived(), 'transaction_date', $year),
             $this->monthSums($entity->profitDistributionsReceived(), 'distribution_date', $year),
             $this->monthSums(
-                ReceivablePayment::query()->whereHas(
-                    'receivable',
-                    fn ($query) => $query->where('finance_entity_id', $entity->id)
-                ),
+                ReceivablePayment::query()
+                    ->where('status', \App\Enums\ReceivablePaymentStatus::ACTIVE)
+                    ->whereHas(
+                        'receivable',
+                        fn ($query) => $query->where('finance_entity_id', $entity->id)
+                    ),
                 'payment_date',
                 $year
             ),
         );
 
         $expense = $this->addMonthMaps(
-            $this->monthSums($entity->transactions(), 'transaction_date', $year),
+            $this->monthSums($entity->transactions()->whereNull('reversed_at'), 'transaction_date', $year),
             $this->monthSums(
                 DebtPayment::query()->whereHas(
                     'debt',
@@ -381,7 +383,7 @@ class EntityReportService
     private function periodFlows(FinanceEntity $entity, ?string $from, ?string $to): array
     {
         $income = $this->sumByDate($entity->incomes(), 'income_date', $from, $to);
-        $transactions = $this->sumByDate($entity->transactions(), 'transaction_date', $from, $to);
+        $transactions = $this->sumByDate($entity->transactions()->whereNull('reversed_at'), 'transaction_date', $from, $to);
         $debtPayments = (float) DebtPayment::query()
             ->whereHas('debt', fn ($query) => $query->where('finance_entity_id', $entity->id))
             ->when($from, fn ($query) => $query->whereDate('paid_on', '>=', $from))
@@ -430,6 +432,7 @@ class EntityReportService
             ->when($to, fn ($query) => $query->whereDate('distribution_date', '<=', $to))
             ->sum('amount');
         $receivableIn = (float) ReceivablePayment::query()
+            ->where('status', \App\Enums\ReceivablePaymentStatus::ACTIVE)
             ->whereHas('receivable', fn ($query) => $query->where('finance_entity_id', $entity->id))
             ->when($from, fn ($query) => $query->whereDate('payment_date', '>=', $from))
             ->when($to, fn ($query) => $query->whereDate('payment_date', '<=', $to))

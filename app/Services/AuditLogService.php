@@ -16,6 +16,8 @@ use App\Models\FinanceTransfer;
 use App\Models\GoalContribution;
 use App\Models\Income;
 use App\Models\OwnerWithdrawal;
+use App\Models\PlantationIntegration;
+use App\Models\PlantationOperatingBudget;
 use App\Models\ProfitDistribution;
 use App\Models\Receivable;
 use App\Models\ReceivablePayment;
@@ -49,8 +51,12 @@ class AuditLogService
         'plain',
         'private_token',
         'token_hash',
+        'access_url',
         'access_token',
         'api_token',
+        'service_token',
+        'authorization',
+        'bearer',
         'session',
         'session_id',
         '_token',
@@ -66,6 +72,13 @@ class AuditLogService
     private const WHITELISTS = [
         FinanceEntity::class => ['name', 'slug', 'type', 'description', 'is_active', 'public_id'],
         FinanceEntityAccessToken::class => ['id', 'label', 'is_active', 'expires_at', 'last_used_at', 'finance_entity_id'],
+        PlantationIntegration::class => [
+            'finance_entity_id', 'plantation_entity_public_id', 'status', 'last_synced_at', 'last_error',
+        ],
+        PlantationOperatingBudget::class => [
+            'public_id', 'finance_entity_id', 'name', 'period_start', 'period_end',
+            'allocated_amount', 'status', 'last_synced_at', 'last_error',
+        ],
         FinanceAccount::class => [
             'name', 'type', 'bank_name', 'account_number', 'description',
             'opening_balance', 'is_active', 'is_default', 'finance_entity_id', 'public_id',
@@ -73,6 +86,7 @@ class AuditLogService
         Transaction::class => [
             'amount', 'transaction_date', 'description', 'category_id',
             'finance_account_id', 'finance_entity_id', 'context',
+            'reversed_at', 'reversed_reason',
         ],
         Income::class => [
             'amount', 'income_date', 'source', 'description', 'category_id',
@@ -102,9 +116,11 @@ class AuditLogService
         Receivable::class => [
             'party_name', 'description', 'principal_amount', 'remaining_balance',
             'receivable_date', 'due_date', 'status', 'finance_entity_id',
+            'source_type', 'source_public_id', 'cancelled_at',
         ],
         ReceivablePayment::class => [
             'amount', 'payment_date', 'description', 'finance_account_id', 'receivable_id',
+            'source_type', 'source_public_id', 'status', 'reversed_at',
         ],
     ];
 
@@ -133,7 +149,7 @@ class AuditLogService
         } elseif ($action === AuditAction::AI_CHAT_REQUESTED) {
             $oldValues = null;
             $newValues = $this->sanitize($newValues ?? []);
-        } elseif ($action === AuditAction::DELETE || $action === AuditAction::FINANCE_ENTITY_DELETED || $action === AuditAction::ACCESS_LINK_DELETED) {
+        } elseif ($action === AuditAction::DELETE || $action === AuditAction::FINANCE_ENTITY_DELETED || $action === AuditAction::ACCESS_LINK_DELETED || $action === AuditAction::PLANTATION_ACCESS_LINK_DELETED) {
             $oldValues = $this->sanitize($oldValues ?? $this->snapshot($auditable));
             $newValues = null;
         } elseif ($oldValues !== null || $newValues !== null) {

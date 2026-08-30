@@ -190,7 +190,7 @@ it('computes a negative loss without treating it as expense or revenue', functio
     $this->get(route('entity.profit-loss.index', $business))
         ->assertOk()
         ->assertSee('Rugi: Rp 30.000')
-        ->assertSee('Laba: Rp -30.000');
+        ->assertSee('Laba: -Rp 30.000');
 });
 
 it('keeps dashboard and profit-loss numbers consistent for the same period', function () {

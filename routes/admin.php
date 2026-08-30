@@ -10,6 +10,9 @@ use App\Http\Controllers\Admin\FinanceEntityAccessTokenController;
 use App\Http\Controllers\Admin\FinanceEntityController;
 use App\Http\Controllers\Admin\FinanceTransferController;
 use App\Http\Controllers\Admin\OwnerWithdrawalController;
+use App\Http\Controllers\Admin\PlantationAccessLinkController;
+use App\Http\Controllers\Admin\PlantationIntegrationController;
+use App\Http\Controllers\Admin\PlantationOperatingBudgetController;
 use App\Http\Controllers\Admin\ProfitDistributionController;
 use App\Http\Controllers\Admin\ReceivableController;
 use Illuminate\Support\Facades\Route;
@@ -26,6 +29,41 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('reports', [AdminReportController::class, 'index'])->name('reports.index');
         Route::get('audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs.index');
         Route::get('audit-logs/{auditLog}', [AdminAuditLogController::class, 'show'])->name('audit-logs.show');
+
+        Route::get('plantation-integrations', [PlantationIntegrationController::class, 'index'])->name('plantation-integrations.index');
+        Route::get('plantation-integrations/{financeEntity}', [PlantationIntegrationController::class, 'show'])->name('plantation-integrations.show');
+        Route::post('plantation-integrations/{financeEntity}/activate', [PlantationIntegrationController::class, 'activate'])->name('plantation-integrations.activate');
+        Route::post('plantation-integrations/{financeEntity}/sync', [PlantationIntegrationController::class, 'sync'])->name('plantation-integrations.sync');
+        Route::post('plantation-integrations/{financeEntity}/sync-harvest-receivables', [PlantationIntegrationController::class, 'syncHarvestReceivables'])->name('plantation-integrations.sync-harvest-receivables');
+        Route::post('plantation-integrations/{financeEntity}/deactivate', [PlantationIntegrationController::class, 'deactivate'])->name('plantation-integrations.deactivate');
+        Route::post('plantation-integrations/{financeEntity}/reactivate', [PlantationIntegrationController::class, 'reactivate'])->name('plantation-integrations.reactivate');
+        Route::get('plantation-integrations/{financeEntity}/access-links', [PlantationAccessLinkController::class, 'index'])->name('plantation-integrations.access-links.index');
+        Route::post('plantation-integrations/{financeEntity}/access-links', [PlantationAccessLinkController::class, 'store'])->name('plantation-integrations.access-links.store');
+        Route::post('plantation-integrations/{financeEntity}/access-links/{tokenId}/revoke', [PlantationAccessLinkController::class, 'revoke'])
+            ->whereNumber('tokenId')
+            ->name('plantation-integrations.access-links.revoke');
+        Route::post('plantation-integrations/{financeEntity}/access-links/{tokenId}/activate', [PlantationAccessLinkController::class, 'activate'])
+            ->whereNumber('tokenId')
+            ->name('plantation-integrations.access-links.activate');
+        Route::post('plantation-integrations/{financeEntity}/access-links/{tokenId}/regenerate', [PlantationAccessLinkController::class, 'regenerate'])
+            ->whereNumber('tokenId')
+            ->name('plantation-integrations.access-links.regenerate');
+        Route::delete('plantation-integrations/{financeEntity}/access-links/{tokenId}', [PlantationAccessLinkController::class, 'destroy'])
+            ->whereNumber('tokenId')
+            ->name('plantation-integrations.access-links.destroy');
+
+        Route::get('plantation-integrations/{financeEntity}/operating-budgets', [PlantationOperatingBudgetController::class, 'index'])
+            ->name('plantation-integrations.operating-budgets.index');
+        Route::get('plantation-integrations/{financeEntity}/operating-budgets/create', [PlantationOperatingBudgetController::class, 'create'])
+            ->name('plantation-integrations.operating-budgets.create');
+        Route::post('plantation-integrations/{financeEntity}/operating-budgets', [PlantationOperatingBudgetController::class, 'store'])
+            ->name('plantation-integrations.operating-budgets.store');
+        Route::get('plantation-integrations/{financeEntity}/operating-budgets/{operatingBudget}/edit', [PlantationOperatingBudgetController::class, 'edit'])
+            ->name('plantation-integrations.operating-budgets.edit');
+        Route::put('plantation-integrations/{financeEntity}/operating-budgets/{operatingBudget}', [PlantationOperatingBudgetController::class, 'update'])
+            ->name('plantation-integrations.operating-budgets.update');
+        Route::post('plantation-integrations/{financeEntity}/operating-budgets/{operatingBudget}/sync', [PlantationOperatingBudgetController::class, 'sync'])
+            ->name('plantation-integrations.operating-budgets.sync');
 
         Route::get('finance-entities', [FinanceEntityController::class, 'index'])->name('finance-entities.index');
         Route::get('finance-entities/create', [FinanceEntityController::class, 'create'])->name('finance-entities.create');

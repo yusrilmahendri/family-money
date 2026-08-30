@@ -35,6 +35,13 @@ return [
         ],
     ],
 
+    'plantation' => [
+        'base_url' => env('PLANTATION_SERVICE_URL'),
+        'token' => env('PLANTATION_SERVICE_TOKEN'),
+        'timeout' => (int) env('PLANTATION_SERVICE_TIMEOUT', 15),
+        'hmac_secret' => env('PLANTATION_HMAC_SECRET'),
+    ],
+
     'ai' => [
         // Pilih provider: gemini | groq | openrouter | openai | ollama | custom
         // gemini direkomendasikan: gratis 1500 req/hari, akurasi tinggi, Bahasa Indonesia bagus

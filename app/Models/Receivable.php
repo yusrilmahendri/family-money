@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\ReceivablePaymentStatus;
+use App\Enums\ReceivableSourceType;
 use App\Enums\ReceivableStatus;
 use App\Models\Concerns\BelongsToFinanceEntity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -26,6 +28,10 @@ class Receivable extends Model
         'receivable_date',
         'due_date',
         'status',
+        'source_type',
+        'source_public_id',
+        'cancelled_at',
+        'cancelled_reason',
     ];
 
     /**
@@ -39,6 +45,8 @@ class Receivable extends Model
             'receivable_date' => 'date',
             'due_date' => 'date',
             'status' => ReceivableStatus::class,
+            'source_type' => ReceivableSourceType::class,
+            'cancelled_at' => 'datetime',
         ];
     }
 
@@ -61,6 +69,11 @@ class Receivable extends Model
         return $this->hasMany(ReceivablePayment::class);
     }
 
+    public function activePayments(): HasMany
+    {
+        return $this->payments()->where('status', ReceivablePaymentStatus::ACTIVE);
+    }
+
     public function computedStatus(): ReceivableStatus
     {
         return ReceivableStatus::fromState(
@@ -77,12 +90,12 @@ class Receivable extends Model
 
     public function hasPayments(): bool
     {
-        return $this->payments()->exists();
+        return $this->payments()->where('status', ReceivablePaymentStatus::ACTIVE)->exists();
     }
 
     public function paidTotal(): float
     {
-        return (float) $this->payments()->sum('amount');
+        return (float) $this->activePayments()->sum('amount');
     }
 
     public static function generatePublicId(): string
