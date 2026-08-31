@@ -32,7 +32,9 @@ it('returns 200 on the public root portal without a private capability', functio
         ->not->toContain('/apps')
         ->not->toContain('/access/{token}')
         ->not->toContain('data-app-type="')
-        ->and(substr_count($html, 'class="portal-admin-link"'))->toBeGreaterThan(0);
+        ->toContain('Arusku · Created by @Yusril Mahendri')
+        ->and(substr_count($html, 'class="portal-admin-link"'))->toBe(1)
+        ->and($html)->toContain('href="'.url('/admin').'"');
 });
 
 it('does not expose private entities on the root portal without authorization', function () {

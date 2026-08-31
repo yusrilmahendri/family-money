@@ -52,8 +52,7 @@
 
     <footer class="portal-footer">
         <div class="portal-footer-inner">
-            <span>Arusku</span>
-            <a href="{{ url('/admin') }}" class="portal-admin-link">Admin</a>
+            <p class="portal-footer-credit">Arusku · Created by @Yusril Mahendri</p>
         </div>
     </footer>
 </body>
