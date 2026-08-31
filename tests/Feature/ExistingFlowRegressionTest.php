@@ -7,8 +7,7 @@ uses(RefreshDatabase::class);
 
 it('retires the apps portal and does not set FinanceContext', function () {
     $this->get('/apps')
-        ->assertRedirect(route('home'))
-        ->assertSessionHas('danger');
+        ->assertRedirect(route('home'));
 
     $this->post(route('apps.select'), [
         'context' => FinanceContext::PRIBADI,

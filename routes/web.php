@@ -1,10 +1,14 @@
 <?php
 
-use App\Http\Controllers\HomeController;
+use App\Http\Controllers\ApplicationPortalController;
 use App\Http\Controllers\LegacyRetiredController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/', [ApplicationPortalController::class, 'index'])
+    ->middleware('throttle:60,1')
+    ->name('home');
+
+Route::redirect('/portal', '/', 302);
 
 $retired = LegacyRetiredController::class;
 

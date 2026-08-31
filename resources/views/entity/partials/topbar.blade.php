@@ -12,6 +12,12 @@
         <a href="{{ route('entity.dashboard', $entity) }}" class="entity-topbar-home" title="Dashboard">
             <i class="fa fa-home"></i>
         </a>
+        @if(app(\App\Services\ApplicationPortalService::class)->hasMultipleDestinations())
+            <a href="{{ route('home') }}" class="entity-topbar-portal" title="Portal Arusku">
+                <i class="fa fa-th-large"></i>
+                <span>Arusku</span>
+            </a>
+        @endif
         <span class="entity-topbar-name">{{ $entity->name }}</span>
         @include('entity.components.status-badge', [
             'label' => $entity->type->value,

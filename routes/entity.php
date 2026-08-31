@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ApplicationPortalController;
 use App\Http\Controllers\Entity\EntityAccountController;
 use App\Http\Controllers\Entity\EntityBudgetController;
 use App\Http\Controllers\Entity\EntityCapitalContributionController;
@@ -25,6 +26,10 @@ Route::get('/access/{token}', [EntityAccessController::class, 'show'])
     ->middleware('throttle:30,1')
     ->where('token', '[A-Fa-f0-9]{64}')
     ->name('access.show');
+
+Route::post('/portal/plantation/{financeEntity}', [ApplicationPortalController::class, 'handoff'])
+    ->middleware(['entity.access', 'entity.type:BUSINESS', 'throttle:10,1'])
+    ->name('portal.plantation.handoff');
 
 Route::middleware('entity.access')->prefix('e/{financeEntity}')->name('entity.')->scopeBindings()->group(function () {
     Route::get('dashboard', [EntityDashboardController::class, 'show'])->name('dashboard');

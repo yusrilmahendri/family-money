@@ -116,8 +116,10 @@ it('can hold capabilities for two entities in the same session', function () {
     [, $plainA] = issueLink($entityA);
     [, $plainB] = issueLink($entityB);
 
-    $this->get(route('access.show', $plainA))->assertRedirect();
-    $this->get(route('access.show', $plainB))->assertRedirect();
+    $this->get(route('access.show', $plainA))
+        ->assertRedirect(route('entity.dashboard', $entityA));
+    $this->get(route('access.show', $plainB))
+        ->assertRedirect(route('home'));
 
     expect(FinanceEntityAccess::hasCapability($entityA))->toBeTrue()
         ->and(FinanceEntityAccess::hasCapability($entityB))->toBeTrue();

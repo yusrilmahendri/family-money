@@ -117,7 +117,7 @@ it('keeps admin working after legacy portal retirement', function () {
 });
 
 it('retires global finance routes so they cannot write legacy saldos', function () {
-    $this->get('/')->assertOk()->assertSee('tautan privat')->assertSee('Admin Login');
+    $this->get('/')->assertOk()->assertSee('ARUSKU')->assertDontSee('Keuangan Kita');
     $this->get(route('apps.index'))->assertRedirect(route('home'));
     $this->get(route('dashboard'))->assertRedirect(route('home'));
     $this->get(route('insight.index'))->assertRedirect(route('home'));

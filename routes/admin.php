@@ -15,9 +15,18 @@ use App\Http\Controllers\Admin\PlantationIntegrationController;
 use App\Http\Controllers\Admin\PlantationOperatingBudgetController;
 use App\Http\Controllers\Admin\ProfitDistributionController;
 use App\Http\Controllers\Admin\ReceivableController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', function (Request $request) {
+        if ($request->user()?->isAdmin()) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        return redirect()->route('admin.login');
+    });
+
     Route::get('login', [AdminLoginController::class, 'create'])->name('login');
     Route::post('login', [AdminLoginController::class, 'store'])
         ->middleware('throttle:5,1')

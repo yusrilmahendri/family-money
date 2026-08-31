@@ -5,11 +5,11 @@
 require_once __DIR__.'/../app/helpers.php';
 
 use App\Http\Middleware\AuthenticatePlantationService;
-use App\Http\Middleware\VerifyPlantationIntegrationHmac;
 use App\Http\Middleware\EnsureFinanceEntityAccess;
 use App\Http\Middleware\EnsureFinanceEntityType;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\ForgetSensitiveAccessUrl;
+use App\Http\Middleware\VerifyPlantationIntegrationHmac;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
