@@ -18,6 +18,7 @@ use App\Models\Income;
 use App\Models\OwnerWithdrawal;
 use App\Models\PlantationIntegration;
 use App\Models\PlantationOperatingBudget;
+use App\Models\PortalAccessGrant;
 use App\Models\ProfitDistribution;
 use App\Models\Receivable;
 use App\Models\ReceivablePayment;
@@ -137,6 +138,7 @@ class FinanceEntityDeletionService
         Category::query()->where('finance_entity_id', $entityId)->delete();
 
         FinanceEntityAccessToken::query()->where('finance_entity_id', $entityId)->delete();
+        PortalAccessGrant::query()->where('finance_entity_id', $entityId)->delete();
         PlantationOperatingBudget::query()->where('finance_entity_id', $entityId)->delete();
         PlantationIntegration::query()->where('finance_entity_id', $entityId)->delete();
         FinanceAccount::query()->where('finance_entity_id', $entityId)->delete();

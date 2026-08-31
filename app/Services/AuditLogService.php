@@ -18,6 +18,8 @@ use App\Models\Income;
 use App\Models\OwnerWithdrawal;
 use App\Models\PlantationIntegration;
 use App\Models\PlantationOperatingBudget;
+use App\Models\PortalAccessGrant;
+use App\Models\PortalAccessToken;
 use App\Models\ProfitDistribution;
 use App\Models\Receivable;
 use App\Models\ReceivablePayment;
@@ -55,6 +57,9 @@ class AuditLogService
         'access_token',
         'api_token',
         'service_token',
+        'handoff',
+        'handoff_code',
+        'handoff_url',
         'authorization',
         'bearer',
         'session',
@@ -72,6 +77,8 @@ class AuditLogService
     private const WHITELISTS = [
         FinanceEntity::class => ['name', 'slug', 'type', 'description', 'is_active', 'public_id'],
         FinanceEntityAccessToken::class => ['id', 'label', 'is_active', 'expires_at', 'last_used_at', 'finance_entity_id'],
+        PortalAccessToken::class => ['id', 'public_id', 'name', 'is_active', 'expires_at', 'last_used_at'],
+        PortalAccessGrant::class => ['id', 'portal_access_token_id', 'resource_type', 'finance_entity_id'],
         PlantationIntegration::class => [
             'finance_entity_id', 'plantation_entity_public_id', 'status', 'last_synced_at', 'last_error',
         ],

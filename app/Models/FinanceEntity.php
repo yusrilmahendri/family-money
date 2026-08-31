@@ -108,6 +108,11 @@ class FinanceEntity extends Model
         return $this->hasMany(FinanceEntityAccessToken::class);
     }
 
+    public function portalAccessGrants(): HasMany
+    {
+        return $this->hasMany(PortalAccessGrant::class);
+    }
+
     public function categories(): HasMany
     {
         return $this->hasMany(Category::class);

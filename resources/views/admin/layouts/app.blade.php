@@ -40,6 +40,9 @@
                 <li class="{{ request()->routeIs('admin.finance-entities.*') ? 'active' : '' }}">
                     <a href="{{ route('admin.finance-entities.index') }}"><em class="fa fa-building">&nbsp;</em> Finance Entities</a>
                 </li>
+                <li class="{{ request()->routeIs('admin.portal-access.*') ? 'active' : '' }}">
+                    <a href="{{ route('admin.portal-access.index') }}"><em class="fa fa-link">&nbsp;</em> Portal Access</a>
+                </li>
                 <li class="{{ request()->routeIs('admin.plantation-integrations.*') ? 'active' : '' }}">
                     <a href="{{ route('admin.plantation-integrations.index') }}"><em class="fa fa-leaf">&nbsp;</em> Management Kebun</a>
                 </li>

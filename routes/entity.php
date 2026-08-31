@@ -28,7 +28,7 @@ Route::get('/access/{token}', [EntityAccessController::class, 'show'])
     ->name('access.show');
 
 Route::post('/portal/plantation/{financeEntity}', [ApplicationPortalController::class, 'handoff'])
-    ->middleware(['entity.access', 'entity.type:BUSINESS', 'throttle:10,1'])
+    ->middleware(['entity.type:BUSINESS', 'throttle:10,1'])
     ->name('portal.plantation.handoff');
 
 Route::middleware('entity.access')->prefix('e/{financeEntity}')->name('entity.')->scopeBindings()->group(function () {

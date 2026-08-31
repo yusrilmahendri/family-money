@@ -19,6 +19,8 @@ use App\Models\Income;
 use App\Models\OwnerWithdrawal;
 use App\Models\PlantationIntegration;
 use App\Models\PlantationOperatingBudget;
+use App\Models\PortalAccessGrant;
+use App\Models\PortalAccessToken;
 use App\Models\ProfitDistribution;
 use App\Models\Receivable;
 use App\Models\ReceivablePayment;
@@ -104,6 +106,8 @@ class AdminAuditLogController extends Controller
             ReceivablePayment::class,
             PlantationIntegration::class,
             PlantationOperatingBudget::class,
+            PortalAccessToken::class,
+            PortalAccessGrant::class,
         ];
 
         return collect($types)

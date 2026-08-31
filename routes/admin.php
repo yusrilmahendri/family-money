@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\OwnerWithdrawalController;
 use App\Http\Controllers\Admin\PlantationAccessLinkController;
 use App\Http\Controllers\Admin\PlantationIntegrationController;
 use App\Http\Controllers\Admin\PlantationOperatingBudgetController;
+use App\Http\Controllers\Admin\PortalAccessController;
 use App\Http\Controllers\Admin\ProfitDistributionController;
 use App\Http\Controllers\Admin\ReceivableController;
 use Illuminate\Http\Request;
@@ -38,6 +39,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('reports', [AdminReportController::class, 'index'])->name('reports.index');
         Route::get('audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs.index');
         Route::get('audit-logs/{auditLog}', [AdminAuditLogController::class, 'show'])->name('audit-logs.show');
+
+        Route::get('portal-access', [PortalAccessController::class, 'index'])->name('portal-access.index');
+        Route::post('portal-access', [PortalAccessController::class, 'store'])->name('portal-access.store');
+        Route::get('portal-access/{portalAccessToken}/edit', [PortalAccessController::class, 'edit'])->name('portal-access.edit');
+        Route::put('portal-access/{portalAccessToken}', [PortalAccessController::class, 'update'])->name('portal-access.update');
+        Route::post('portal-access/{portalAccessToken}/revoke', [PortalAccessController::class, 'revoke'])->name('portal-access.revoke');
+        Route::post('portal-access/{portalAccessToken}/activate', [PortalAccessController::class, 'activate'])->name('portal-access.activate');
+        Route::post('portal-access/{portalAccessToken}/regenerate', [PortalAccessController::class, 'regenerate'])->name('portal-access.regenerate');
+        Route::delete('portal-access/{portalAccessToken}', [PortalAccessController::class, 'destroy'])->name('portal-access.destroy');
 
         Route::get('plantation-integrations', [PlantationIntegrationController::class, 'index'])->name('plantation-integrations.index');
         Route::get('plantation-integrations/{financeEntity}', [PlantationIntegrationController::class, 'show'])->name('plantation-integrations.show');

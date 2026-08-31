@@ -45,3 +45,39 @@ function something()
 {
     // ..
 }
+
+const PORTAL_PLANTATION_TOKEN = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+const PORTAL_PLANTATION_URL = 'http://plantation.test/access/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+const PORTAL_PLANTATION_PUBLIC_ID = '01PORTALPLANTATIONENTITY0001';
+
+function portalActivatePlantation(
+    App\Models\FinanceEntity $entity,
+    App\Enums\PlantationIntegrationStatus $status = App\Enums\PlantationIntegrationStatus::ACTIVE,
+): App\Models\PlantationIntegration {
+    return App\Models\PlantationIntegration::query()->create([
+        'finance_entity_id' => $entity->id,
+        'plantation_entity_public_id' => PORTAL_PLANTATION_PUBLIC_ID.'-'.$entity->id,
+        'status' => $status,
+    ]);
+}
+
+function portalFakeHandoff(string $accessUrl = PORTAL_PLANTATION_URL): void
+{
+    Illuminate\Support\Facades\Http::fake(function (Illuminate\Http\Client\Request $request) use ($accessUrl) {
+        $path = parse_url($request->url(), PHP_URL_PATH) ?: '';
+
+        if ($request->method() === 'POST' && preg_match('#/access-links$#', $path)) {
+            return Illuminate\Support\Facades\Http::response([
+                'data' => [
+                    'id' => 21,
+                    'label' => $request['label'] ?? 'Finance portal',
+                    'token' => PORTAL_PLANTATION_TOKEN,
+                    'access_url' => $accessUrl,
+                    'is_active' => true,
+                ],
+            ], 201);
+        }
+
+        return Illuminate\Support\Facades\Http::response(['message' => 'Unexpected plantation request'], 500);
+    });
+}

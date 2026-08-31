@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\PlantationServiceException;
 use App\Models\FinanceEntity;
 use App\Support\FinanceEntityAccess;
+use App\Support\PortalAccessSession;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -37,6 +38,7 @@ class ApplicationPortalService
     public function destinations(): Collection
     {
         $cards = collect();
+        $plantationShown = [];
 
         foreach (FinanceEntityAccess::authorizedEntities() as $entity) {
             if ($entity->isFamily()) {
@@ -63,9 +65,19 @@ class ApplicationPortalService
                 'fa-briefcase',
             ));
 
-            if ($entity->hasActivePlantationIntegration()) {
+            if ($this->canOpenPlantation($entity)) {
                 $cards->push($this->plantationCard($entity));
+                $plantationShown[$entity->id] = true;
             }
+        }
+
+        foreach (PortalAccessSession::authorizedPlantationEntities() as $entity) {
+            if (isset($plantationShown[$entity->id])) {
+                continue;
+            }
+
+            $cards->push($this->plantationCard($entity));
+            $plantationShown[$entity->id] = true;
         }
 
         return $cards->values();
@@ -78,7 +90,7 @@ class ApplicationPortalService
 
     public function accessLabel(): ?string
     {
-        if (FinanceEntityAccess::authorizedEntities()->isEmpty()) {
+        if (FinanceEntityAccess::authorizedEntities()->isEmpty() && ! PortalAccessSession::isValid()) {
             return null;
         }
 
@@ -86,12 +98,34 @@ class ApplicationPortalService
     }
 
     /**
+     * Plantation may be granted independently of Finance.
+     * Legacy entity-token sessions keep auto-plantation when integration is ACTIVE.
+     * Portal Access sessions only include Plantation when it is an explicit grant.
+     */
+    public function canOpenPlantation(FinanceEntity $entity): bool
+    {
+        if (! $entity->is_active || ! $entity->hasActivePlantationIntegration()) {
+            return false;
+        }
+
+        if (PortalAccessSession::hasPlantationGrant($entity)) {
+            return true;
+        }
+
+        return FinanceEntityAccess::hasLegacyEntityCapability($entity);
+    }
+
+    /**
      * Issue a short-lived Plantation access URL for this request only.
      * The URL is never stored on Finance.
+     *
+     * Plantation does not yet expose an opaque one-time /handoff/{code} API.
+     * Until that exists, Finance reuses issueAccessLink with a short TTL
+     * and never persists or renders the returned URL.
      */
     public function issuePlantationHandoffUrl(FinanceEntity $entity): string
     {
-        if (! FinanceEntityAccess::isAuthorized($entity) || ! $entity->hasActivePlantationIntegration()) {
+        if (! $this->canOpenPlantation($entity)) {
             throw new InvalidArgumentException('Management Kebun tidak tersedia untuk sesi ini.');
         }
 

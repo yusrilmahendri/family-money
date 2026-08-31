@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Enums\FinanceEntityType;
 use App\Models\FinanceEntity;
 use App\Models\FinanceEntityAccessToken;
+use App\Models\PortalAccessToken;
 use Illuminate\Support\Collection;
 
 /**
@@ -17,8 +18,12 @@ class FinanceEntityAccess
 {
     public const SESSION_KEY = 'finance_entity_access';
 
+    public const SOURCE_ENTITY = 'entity';
+
+    public const SOURCE_PORTAL = 'portal';
+
     /**
-     * @return array<string, array{token_id: int, granted_at: string}>
+     * @return array<string, array{token_id: int, granted_at: string, source?: string}>
      */
     public static function all(): array
     {
@@ -29,13 +34,12 @@ class FinanceEntityAccess
 
     public static function grant(FinanceEntity $entity, FinanceEntityAccessToken $token): void
     {
-        $access = self::all();
-        $access[$entity->public_id] = [
-            'token_id' => (int) $token->id,
-            'granted_at' => now()->toIso8601String(),
-        ];
+        self::store($entity, (int) $token->id, self::SOURCE_ENTITY);
+    }
 
-        session([self::SESSION_KEY => $access]);
+    public static function grantFromPortal(FinanceEntity $entity, PortalAccessToken $token): void
+    {
+        self::store($entity, (int) $token->id, self::SOURCE_PORTAL);
     }
 
     public static function tokenIdFor(FinanceEntity $entity): ?int
@@ -51,7 +55,19 @@ class FinanceEntityAccess
 
     public static function hasCapability(FinanceEntity $entity): bool
     {
-        return self::tokenIdFor($entity) !== null;
+        return self::tokenIdFor($entity) !== null
+            || PortalAccessSession::hasFinanceGrant($entity);
+    }
+
+    public static function sourceFor(FinanceEntity $entity): ?string
+    {
+        $entry = self::all()[$entity->public_id] ?? null;
+
+        if (! is_array($entry) || ! isset($entry['token_id'])) {
+            return PortalAccessSession::hasFinanceGrant($entity) ? self::SOURCE_PORTAL : null;
+        }
+
+        return is_string($entry['source'] ?? null) ? $entry['source'] : self::SOURCE_ENTITY;
     }
 
     /**
@@ -60,12 +76,74 @@ class FinanceEntityAccess
      */
     public static function isAuthorized(FinanceEntity $entity): bool
     {
-        $tokenId = self::tokenIdFor($entity);
-
-        if ($tokenId === null) {
+        if (! $entity->is_active) {
             return false;
         }
 
+        $tokenId = self::tokenIdFor($entity);
+        $source = self::sourceFor($entity);
+
+        if ($tokenId !== null && $source === self::SOURCE_PORTAL && self::portalTokenAuthorizes($entity, $tokenId)) {
+            return true;
+        }
+
+        if ($tokenId !== null && $source !== self::SOURCE_PORTAL && self::entityTokenAuthorizes($entity, $tokenId)) {
+            return true;
+        }
+
+        return PortalAccessSession::hasFinanceGrant($entity);
+    }
+
+    /**
+     * Legacy entity-token capability (not a PortalAccess finance grant).
+     */
+    public static function hasLegacyEntityCapability(FinanceEntity $entity): bool
+    {
+        $tokenId = self::tokenIdFor($entity);
+
+        if ($tokenId === null || self::sourceFor($entity) === self::SOURCE_PORTAL) {
+            return false;
+        }
+
+        return self::entityTokenAuthorizes($entity, $tokenId);
+    }
+
+    /**
+     * @return Collection<int, FinanceEntity>
+     */
+    public static function authorizedEntities(): Collection
+    {
+        $publicIds = array_values(array_unique(array_merge(
+            array_keys(self::all()),
+            PortalAccessSession::financeEntityPublicIds(),
+        )));
+
+        if ($publicIds === []) {
+            return collect();
+        }
+
+        return FinanceEntity::query()
+            ->whereIn('public_id', $publicIds)
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (FinanceEntity $entity) => self::isAuthorized($entity))
+            ->values();
+    }
+
+    private static function store(FinanceEntity $entity, int $tokenId, string $source): void
+    {
+        $access = self::all();
+        $access[$entity->public_id] = [
+            'source' => $source,
+            'token_id' => $tokenId,
+            'granted_at' => now()->toIso8601String(),
+        ];
+
+        session([self::SESSION_KEY => $access]);
+    }
+
+    private static function entityTokenAuthorizes(FinanceEntity $entity, int $tokenId): bool
+    {
         $token = FinanceEntityAccessToken::query()
             ->with('financeEntity')
             ->find($tokenId);
@@ -81,23 +159,17 @@ class FinanceEntityAccess
         return $token->isUsable();
     }
 
-    /**
-     * @return Collection<int, FinanceEntity>
-     */
-    public static function authorizedEntities(): Collection
+    private static function portalTokenAuthorizes(FinanceEntity $entity, int $tokenId): bool
     {
-        $publicIds = array_keys(self::all());
+        $token = PortalAccessToken::query()
+            ->with('grants')
+            ->find($tokenId);
 
-        if ($publicIds === []) {
-            return collect();
+        if (! $token instanceof PortalAccessToken || ! $token->isUsable()) {
+            return false;
         }
 
-        return FinanceEntity::query()
-            ->whereIn('public_id', $publicIds)
-            ->orderBy('name')
-            ->get()
-            ->filter(fn (FinanceEntity $entity) => self::isAuthorized($entity))
-            ->values();
+        return $token->hasFinanceGrant($entity);
     }
 
     /**

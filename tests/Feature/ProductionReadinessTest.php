@@ -5,6 +5,7 @@ use App\Models\Debt;
 use App\Models\FinanceEntity;
 use App\Models\FinanceEntityAccessToken;
 use App\Models\Income;
+use App\Models\PortalAccessToken;
 use App\Models\User;
 use App\Services\BusinessCapitalContributionService;
 use App\Services\BusinessProfitService;
@@ -58,6 +59,13 @@ it('blocks is_admin and token_hash mass assignment and hides the hash', function
 
     expect($token->fresh()->token_hash)->toBe($original)
         ->and($token->toArray())->not->toHaveKey('token_hash');
+
+    $portal = PortalAccessToken::factory()->create(['name' => 'Ready']);
+    $portalHash = $portal->token_hash;
+    $portal->update(['token_hash' => str_repeat('b', 64)]);
+
+    expect($portal->fresh()->token_hash)->toBe($portalHash)
+        ->and($portal->toArray())->not->toHaveKey('token_hash');
 });
 
 it('does not store the plaintext access token in session', function () {

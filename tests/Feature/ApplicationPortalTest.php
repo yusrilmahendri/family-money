@@ -2,17 +2,12 @@
 
 use App\Enums\PlantationIntegrationStatus;
 use App\Models\FinanceEntity;
-use App\Models\PlantationIntegration;
 use App\Models\User;
 use App\Services\FinanceEntityAccessTokenService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
-
-const PORTAL_PLANTATION_TOKEN = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
-const PORTAL_PLANTATION_URL = 'http://plantation.test/access/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
-const PORTAL_PLANTATION_PUBLIC_ID = '01PORTALPLANTATIONENTITY0001';
 
 function portalIssue(FinanceEntity $entity): array
 {
@@ -25,36 +20,6 @@ function portalGrant(FinanceEntity $entity): string
     test()->get(route('access.show', $plain))->assertRedirect();
 
     return $plain;
-}
-
-function portalActivatePlantation(FinanceEntity $entity, PlantationIntegrationStatus $status = PlantationIntegrationStatus::ACTIVE): PlantationIntegration
-{
-    return PlantationIntegration::query()->create([
-        'finance_entity_id' => $entity->id,
-        'plantation_entity_public_id' => PORTAL_PLANTATION_PUBLIC_ID,
-        'status' => $status,
-    ]);
-}
-
-function portalFakeHandoff(string $accessUrl = PORTAL_PLANTATION_URL): void
-{
-    Http::fake(function (\Illuminate\Http\Client\Request $request) use ($accessUrl) {
-        $path = parse_url($request->url(), PHP_URL_PATH) ?: '';
-
-        if ($request->method() === 'POST' && preg_match('#/access-links$#', $path)) {
-            return Http::response([
-                'data' => [
-                    'id' => 21,
-                    'label' => $request['label'] ?? 'Finance portal',
-                    'token' => PORTAL_PLANTATION_TOKEN,
-                    'access_url' => $accessUrl,
-                    'is_active' => true,
-                ],
-            ], 201);
-        }
-
-        return Http::response(['message' => 'Unexpected plantation request'], 500);
-    });
 }
 
 it('redirects a session with only one finance entity to the existing dashboard', function () {
