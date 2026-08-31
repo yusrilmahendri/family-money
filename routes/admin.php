@@ -16,26 +16,18 @@ use App\Http\Controllers\Admin\PlantationOperatingBudgetController;
 use App\Http\Controllers\Admin\PortalAccessController;
 use App\Http\Controllers\Admin\ProfitDistributionController;
 use App\Http\Controllers\Admin\ReceivableController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->group(function () {
-    Route::get('/', function (Request $request) {
-        if ($request->user()?->isAdmin()) {
-            return redirect()->route('admin.dashboard');
-        }
-
-        return redirect()->route('admin.login');
-    });
-
     Route::get('login', [AdminLoginController::class, 'create'])->name('login');
     Route::post('login', [AdminLoginController::class, 'store'])
         ->middleware('throttle:5,1')
         ->name('login.store');
 
     Route::middleware(['auth', 'admin'])->group(function () {
+        Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
+        Route::redirect('dashboard', '/admin');
         Route::post('logout', [AdminLoginController::class, 'destroy'])->name('logout');
-        Route::get('dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
         Route::get('reports', [AdminReportController::class, 'index'])->name('reports.index');
         Route::get('audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs.index');
         Route::get('audit-logs/{auditLog}', [AdminAuditLogController::class, 'show'])->name('audit-logs.show');

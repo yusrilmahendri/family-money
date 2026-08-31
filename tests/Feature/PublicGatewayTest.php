@@ -107,7 +107,8 @@ it('keeps /admin on the existing admin flow', function () {
 
     $this->actingAs($admin)
         ->get('/admin')
-        ->assertRedirect(route('admin.dashboard'));
+        ->assertOk()
+        ->assertSee('Dashboard');
 
     $this->actingAs($admin)
         ->get(route('admin.dashboard'))

@@ -18,7 +18,7 @@ class AdminLoginController extends Controller
         }
 
         return view('admin.auth.login', [
-            'title' => 'Admin Login',
+            'title' => 'Masuk Admin',
         ]);
     }
 
