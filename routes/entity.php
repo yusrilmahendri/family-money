@@ -81,6 +81,12 @@ Route::middleware('entity.access')->prefix('e/{financeEntity}')->name('entity.')
     });
 
     Route::middleware('entity.type:BUSINESS')->group(function () {
+        Route::get('budgets/operating/{plantationOperatingBudget}/edit', [EntityBudgetController::class, 'editOperating'])
+            ->name('budgets.operating.edit');
+        Route::put('budgets/operating/{plantationOperatingBudget}', [EntityBudgetController::class, 'updateOperating'])
+            ->name('budgets.operating.update');
+        Route::post('budgets/operating/{plantationOperatingBudget}/sync', [EntityBudgetController::class, 'syncOperating'])
+            ->name('budgets.operating.sync');
         Route::resource('budgets', EntityBudgetController::class);
         Route::post('budgets/{budget}/activities', [EntityBudgetController::class, 'storeActivity'])->name('budgets.activities.store');
         Route::get('operational-expenses', [EntityOperationalExpenseController::class, 'index'])->name('operational.index');

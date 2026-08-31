@@ -211,6 +211,17 @@ class FinanceEntity extends Model
         return $this->type === FinanceEntityType::BUSINESS;
     }
 
+    public function hasActivePlantationIntegration(): bool
+    {
+        if (! $this->isBusiness()) {
+            return false;
+        }
+
+        $this->loadMissing('plantationIntegration');
+
+        return $this->plantationIntegration?->isActive() === true;
+    }
+
     public function legacyContext(): string
     {
         return \App\Support\FinanceOwnership::contextFor($this);

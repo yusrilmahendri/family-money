@@ -1,7 +1,7 @@
 @extends('entity.layout')
 @section('content')
     <h3>Anggaran {{ $budget->category?->name }}</h3>
-    <p class="text-muted">Anggaran tidak mengurangi saldo. Realisasi dihitung dari biaya yang sudah dicatat.</p>
+    <p class="text-muted">Anggaran adalah perencanaan. Saldo kas hanya berubah saat terjadi realisasi biaya.</p>
     <div class="entity-mini-metrics">
         <div class="entity-mini-metric"><span>Planned</span><strong>{{ rupiah($budget->plannedAmount()) }}</strong></div>
         <div class="entity-mini-metric"><span>Realized</span><strong>{{ rupiah($budget->realizedAmount()) }}</strong></div>

@@ -54,14 +54,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::get('plantation-integrations/{financeEntity}/operating-budgets', [PlantationOperatingBudgetController::class, 'index'])
             ->name('plantation-integrations.operating-budgets.index');
-        Route::get('plantation-integrations/{financeEntity}/operating-budgets/create', [PlantationOperatingBudgetController::class, 'create'])
-            ->name('plantation-integrations.operating-budgets.create');
-        Route::post('plantation-integrations/{financeEntity}/operating-budgets', [PlantationOperatingBudgetController::class, 'store'])
-            ->name('plantation-integrations.operating-budgets.store');
-        Route::get('plantation-integrations/{financeEntity}/operating-budgets/{operatingBudget}/edit', [PlantationOperatingBudgetController::class, 'edit'])
-            ->name('plantation-integrations.operating-budgets.edit');
-        Route::put('plantation-integrations/{financeEntity}/operating-budgets/{operatingBudget}', [PlantationOperatingBudgetController::class, 'update'])
-            ->name('plantation-integrations.operating-budgets.update');
         Route::post('plantation-integrations/{financeEntity}/operating-budgets/{operatingBudget}/sync', [PlantationOperatingBudgetController::class, 'sync'])
             ->name('plantation-integrations.operating-budgets.sync');
 

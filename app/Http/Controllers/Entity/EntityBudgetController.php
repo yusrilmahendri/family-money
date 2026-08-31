@@ -2,16 +2,22 @@
 
 namespace App\Http\Controllers\Entity;
 
+use App\Exceptions\PlantationServiceException;
 use App\Http\Controllers\Concerns\AssignsFinanceAccount;
 use App\Http\Controllers\Concerns\RecordsAudit;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Entity\Concerns\ParsesRupiah;
 use App\Models\Budget;
 use App\Models\FinanceEntity;
+use App\Models\PlantationOperatingBudget;
+use App\Services\PlantationOperatingBudgetService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use InvalidArgumentException;
+use Throwable;
 
 class EntityBudgetController extends Controller
 {
@@ -19,28 +25,47 @@ class EntityBudgetController extends Controller
 
     public function index(FinanceEntity $financeEntity): View
     {
+        $plantationActive = $financeEntity->hasActivePlantationIntegration();
+
         return view('entity.budgets.index', [
             'entity' => $financeEntity,
+            'plantationActive' => $plantationActive,
+            'operatingBudgets' => $plantationActive
+                ? $financeEntity->plantationOperatingBudgets()
+                    ->latest('period_start')
+                    ->latest('id')
+                    ->get()
+                : collect(),
             'budgets' => $financeEntity->budgets()
                 ->with('category')
                 ->withSum('activities', 'amount')
                 ->latest('periode')
                 ->get(),
-            'title' => 'Anggaran',
+            'title' => $plantationActive ? 'Anggaran Kebun' : 'Anggaran',
         ]);
     }
 
-    public function create(FinanceEntity $financeEntity): View
+    public function create(Request $request, FinanceEntity $financeEntity): View
     {
+        $plantationMode = $financeEntity->hasActivePlantationIntegration()
+            && $request->query('mode') !== 'category';
+
         return view('entity.budgets.create', [
             'entity' => $financeEntity,
-            'categories' => $financeEntity->categories()->orderBy('name')->get(),
-            'title' => 'Tambah Anggaran',
+            'plantationMode' => $plantationMode,
+            'categories' => $plantationMode
+                ? collect()
+                : $financeEntity->categories()->orderBy('name')->get(),
+            'title' => $plantationMode ? 'Tambah Anggaran Kebun' : 'Tambah Anggaran',
         ]);
     }
 
-    public function store(Request $request, FinanceEntity $financeEntity): RedirectResponse
+    public function store(Request $request, FinanceEntity $financeEntity, PlantationOperatingBudgetService $operatingBudgets): RedirectResponse
     {
+        if ($this->wantsPlantationOperatingBudget($request, $financeEntity)) {
+            return $this->storePlantationOperatingBudget($request, $financeEntity, $operatingBudgets);
+        }
+
         $validated = $request->validate([
             'amount' => $this->positiveRupiahRules(),
             'periode' => ['required', 'date'],
@@ -138,6 +163,136 @@ class EntityBudgetController extends Controller
         $this->auditLogs()->recordCreated($activity, $financeEntity);
 
         return redirect()->route('entity.budgets.show', [$financeEntity, $budget])->with('success', 'Biaya dicatat.');
+    }
+
+    public function editOperating(FinanceEntity $financeEntity, PlantationOperatingBudget $plantationOperatingBudget): View
+    {
+        $this->ownedOperatingBudget($financeEntity, $plantationOperatingBudget);
+
+        return view('entity.budgets.edit-operating', [
+            'entity' => $financeEntity,
+            'operatingBudget' => $plantationOperatingBudget,
+            'title' => 'Ubah Anggaran Kebun',
+        ]);
+    }
+
+    public function updateOperating(
+        Request $request,
+        FinanceEntity $financeEntity,
+        PlantationOperatingBudget $plantationOperatingBudget,
+        PlantationOperatingBudgetService $operatingBudgets,
+    ): RedirectResponse {
+        $this->ownedOperatingBudget($financeEntity, $plantationOperatingBudget);
+        $payload = $this->plantationOperatingBudgetPayload($request);
+
+        try {
+            $operatingBudgets->update($plantationOperatingBudget, $payload);
+        } catch (Throwable $exception) {
+            return $this->plantationFailed($exception, $financeEntity);
+        }
+
+        return redirect()
+            ->route('entity.budgets.index', $financeEntity)
+            ->with('success', 'Anggaran kebun diperbarui dan dikirim ke Plantation. Saldo kas tidak berubah.');
+    }
+
+    public function syncOperating(
+        FinanceEntity $financeEntity,
+        PlantationOperatingBudget $plantationOperatingBudget,
+        PlantationOperatingBudgetService $operatingBudgets,
+    ): RedirectResponse {
+        $this->ownedOperatingBudget($financeEntity, $plantationOperatingBudget);
+
+        try {
+            $operatingBudgets->sync($plantationOperatingBudget);
+        } catch (Throwable $exception) {
+            return $this->plantationFailed($exception, $financeEntity);
+        }
+
+        return redirect()
+            ->route('entity.budgets.index', $financeEntity)
+            ->with('success', 'Anggaran kebun berhasil dikirim ulang ke Plantation.');
+    }
+
+    private function storePlantationOperatingBudget(
+        Request $request,
+        FinanceEntity $financeEntity,
+        PlantationOperatingBudgetService $operatingBudgets,
+    ): RedirectResponse {
+        abort_unless($financeEntity->isBusiness(), 404);
+
+        if (! $financeEntity->hasActivePlantationIntegration()) {
+            throw ValidationException::withMessages([
+                'name' => 'Management Kebun harus aktif sebelum anggaran kebun dibuat.',
+            ]);
+        }
+
+        $payload = $this->plantationOperatingBudgetPayload($request);
+
+        try {
+            $operatingBudgets->create($financeEntity, $payload);
+        } catch (Throwable $exception) {
+            return $this->plantationFailed($exception, $financeEntity);
+        }
+
+        return redirect()
+            ->route('entity.budgets.index', $financeEntity)
+            ->with('success', 'Anggaran kebun disimpan dan dikirim ke Plantation. Saldo kas tidak berubah.');
+    }
+
+    /**
+     * @return array{name: string, period_start: string, period_end: string, allocated_amount: float}
+     */
+    private function plantationOperatingBudgetPayload(Request $request): array
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'period_start' => ['required', 'date'],
+            'period_end' => ['required', 'date', 'after_or_equal:period_start'],
+            'allocated_amount' => $this->positiveRupiahRules(),
+            'public_id' => ['prohibited'],
+            'finance_entity_id' => ['prohibited'],
+            'status' => ['prohibited'],
+        ]);
+
+        return [
+            'name' => $validated['name'],
+            'period_start' => $validated['period_start'],
+            'period_end' => $validated['period_end'],
+            'allocated_amount' => $this->parseRupiah($validated['allocated_amount']),
+        ];
+    }
+
+    private function ownedOperatingBudget(FinanceEntity $entity, PlantationOperatingBudget $budget): void
+    {
+        abort_unless((int) $budget->finance_entity_id === (int) $entity->id, 404);
+        abort_unless($entity->hasActivePlantationIntegration(), 404);
+    }
+
+    private function wantsPlantationOperatingBudget(Request $request, FinanceEntity $financeEntity): bool
+    {
+        $looksLikePlantation = $request->filled('period_start')
+            || $request->filled('period_end')
+            || $request->filled('allocated_amount');
+
+        if ($looksLikePlantation) {
+            return true;
+        }
+
+        return $financeEntity->hasActivePlantationIntegration()
+            && ! $request->filled('category_id');
+    }
+
+    private function plantationFailed(Throwable $exception, FinanceEntity $financeEntity): RedirectResponse
+    {
+        $message = $exception instanceof PlantationServiceException
+            || $exception instanceof InvalidArgumentException
+            ? $exception->getMessage()
+            : 'Terjadi kesalahan saat menghubungi Plantation Service.';
+
+        return redirect()
+            ->route('entity.budgets.index', $financeEntity)
+            ->with('danger', $message);
     }
 
     private function owned(FinanceEntity $entity, Budget $budget): void

@@ -7,6 +7,7 @@ use App\Enums\PlantationOperatingBudgetStatus;
 use App\Exceptions\PlantationServiceException;
 use App\Models\FinanceEntity;
 use App\Models\PlantationOperatingBudget;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
@@ -25,28 +26,32 @@ class PlantationOperatingBudgetService
     {
         $this->integrations->requireActiveIntegration($entity);
 
-        $budget = PlantationOperatingBudget::query()->create([
-            'finance_entity_id' => $entity->id,
-            'name' => $data['name'],
-            'period_start' => $data['period_start'],
-            'period_end' => $data['period_end'],
-            'allocated_amount' => $data['allocated_amount'],
-            'status' => PlantationOperatingBudgetStatus::DRAFT,
-        ]);
+        $budget = DB::transaction(function () use ($entity, $data): PlantationOperatingBudget {
+            $budget = PlantationOperatingBudget::query()->create([
+                'finance_entity_id' => $entity->id,
+                'name' => $data['name'],
+                'period_start' => $data['period_start'],
+                'period_end' => $data['period_end'],
+                'allocated_amount' => $data['allocated_amount'],
+                'status' => PlantationOperatingBudgetStatus::DRAFT,
+            ]);
 
-        $this->auditLogs->record(
-            $budget,
-            AuditAction::PLANTATION_OPERATING_BUDGET_CREATED,
-            $entity,
-            null,
-            [
-                'public_id' => $budget->public_id,
-                'name' => $budget->name,
-                'allocated_amount' => (string) $budget->allocated_amount,
-                'period_start' => $budget->period_start?->toDateString(),
-                'period_end' => $budget->period_end?->toDateString(),
-            ],
-        );
+            $this->auditLogs->record(
+                $budget,
+                AuditAction::PLANTATION_OPERATING_BUDGET_CREATED,
+                $entity,
+                null,
+                [
+                    'public_id' => $budget->public_id,
+                    'name' => $budget->name,
+                    'allocated_amount' => (string) $budget->allocated_amount,
+                    'period_start' => $budget->period_start?->toDateString(),
+                    'period_end' => $budget->period_end?->toDateString(),
+                ],
+            );
+
+            return $budget;
+        });
 
         $this->push($budget->fresh() ?? $budget, AuditAction::PLANTATION_OPERATING_BUDGET_SYNCED);
 

@@ -1,13 +1,12 @@
 <?php
 
 use App\Enums\AuditAction;
-use App\Enums\PlantationIntegrationStatus;
 use App\Enums\PlantationOperatingBudgetStatus;
 use App\Models\Budget;
 use App\Models\Category;
 use App\Models\FinanceEntity;
-use App\Models\PlantationIntegration;
 use App\Models\PlantationOperatingBudget;
+use App\Services\PlantationOperatingBudgetService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 
@@ -58,6 +57,21 @@ function activatePlantationBusiness(): FinanceEntity
     return $business->fresh();
 }
 
+function createPlantationOperatingBudget(FinanceEntity $business, array $overrides = []): PlantationOperatingBudget
+{
+    return app(PlantationOperatingBudgetService::class)->create($business, array_merge([
+        'name' => 'Anggaran Operasional September',
+        'period_start' => '2026-09-01',
+        'period_end' => '2026-09-30',
+        'allocated_amount' => 50_000_000.0,
+    ], $overrides));
+}
+
+function adminOperatingBudgetsPath(FinanceEntity $entity, string $suffix = ''): string
+{
+    return '/admin/plantation-integrations/'.$entity->public_id.'/operating-budgets'.($suffix !== '' ? '/'.$suffix : '');
+}
+
 it('does not sync historical category budgets to plantation', function () {
     Http::fake();
     $business = FinanceEntity::factory()->business()->create();
@@ -76,125 +90,95 @@ it('does not sync historical category budgets to plantation', function () {
     Http::assertNothingSent();
 });
 
-it('rejects a plantation operating budget when management kebun is not connected', function () {
-    $business = FinanceEntity::factory()->business()->create();
-
-    actingAdmin()
-        ->post(route('admin.plantation-integrations.operating-budgets.store', $business), [
-            'name' => 'Anggaran Operasional September',
-            'period_start' => '2026-09-01',
-            'period_end' => '2026-09-30',
-            'allocated_amount' => 'Rp 50.000.000',
-        ])
-        ->assertRedirect(route('admin.plantation-integrations.index'));
-
-    expect(PlantationOperatingBudget::query()->count())->toBe(0);
-    Http::assertNothingSent();
-});
-
-it('sends an idempotent finance-owned budget contract to plantation', function () {
+it('does not let admin create a plantation operating budget through hidden urls', function () {
     $business = activatePlantationBusiness();
-
-    actingAdmin()
-        ->post(route('admin.plantation-integrations.operating-budgets.store', $business), [
-            'name' => 'Anggaran Operasional September',
-            'period_start' => '2026-09-01',
-            'period_end' => '2026-09-30',
-            'allocated_amount' => 'Rp 50.000.000',
-        ])
-        ->assertRedirect(route('admin.plantation-integrations.operating-budgets.index', $business))
-        ->assertSessionHas('success');
-
-    $budget = PlantationOperatingBudget::query()->first();
-    expect($budget)->not->toBeNull()
-        ->and($budget->status)->toBe(PlantationOperatingBudgetStatus::ACTIVE)
-        ->and((float) $budget->allocated_amount)->toBe(50_000_000.0);
-
-    actingAdmin()
-        ->from(route('admin.plantation-integrations.operating-budgets.create', $business))
-        ->post(route('admin.plantation-integrations.operating-budgets.store', $business), [
-            'name' => 'Anggaran Kedua',
-            'period_start' => '2026-10-01',
-            'period_end' => '2026-10-31',
-            'allocated_amount' => '1000000',
-            'public_id' => '01FORGEDBUDGETPUBLICID0000',
-        ])
-        ->assertRedirect(route('admin.plantation-integrations.operating-budgets.create', $business))
-        ->assertSessionHasErrors('public_id');
-
-    expect(PlantationOperatingBudget::query()->count())->toBe(1);
-
-    Http::assertSent(function (\Illuminate\Http\Client\Request $request) use ($business, $budget) {
-        $path = parse_url($request->url(), PHP_URL_PATH) ?: '';
-
-        return $request->method() === 'PUT'
-            && str_ends_with($path, '/budget-allocations/'.$budget->public_id)
-            && $request['budget_public_id'] === $budget->public_id
-            && $request['finance_entity_public_id'] === $business->public_id
-            && $request['name'] === 'Anggaran Operasional September'
-            && $request['period_start'] === '2026-09-01'
-            && $request['period_end'] === '2026-09-30'
-            && (float) $request['allocated_amount'] === 50_000_000.0
-            && ! isset($request['category_id'])
-            && ! isset($request['amount_saldo']);
-    });
-});
-
-it('keeps a local budget when plantation rejects the sync', function () {
-    $rejectBudgets = false;
-
-    Http::fake(function (\Illuminate\Http\Client\Request $request) use (&$rejectBudgets) {
-        $path = parse_url($request->url(), PHP_URL_PATH) ?: '';
-        $method = $request->method();
-
-        if ($rejectBudgets && $method === 'PUT' && str_contains($path, '/budget-allocations/')) {
-            return Http::response([
-                'message' => 'Unit kebun tidak ditemukan untuk Finance Entity tersebut.',
-            ], 422);
-        }
-
-        if ($method === 'POST' && $path === '/api/internal/plantation-entities') {
-            return Http::response([
-                'data' => [
-                    'public_id' => '01PLANTATIONENTITYTEST00001',
-                    'name' => $request['name'] ?? 'Kebun',
-                    'finance_entity_public_id' => $request['finance_entity_public_id'] ?? null,
-                ],
-            ], 201);
-        }
-
-        return Http::response(['data' => ['ok' => true, 'is_active' => true]]);
-    });
-
-    $business = FinanceEntity::factory()->business()->create();
-    actingAdmin()->post(route('admin.plantation-integrations.activate', $business));
-
-    $rejectBudgets = true;
-
-    actingAdmin()
-        ->post(route('admin.plantation-integrations.operating-budgets.store', $business->fresh()), [
-            'name' => 'Anggaran Operasional September',
-            'period_start' => '2026-09-01',
-            'period_end' => '2026-09-30',
-            'allocated_amount' => '50000000',
-        ])
-        ->assertRedirect()
-        ->assertSessionHas('danger');
-
-    $budget = PlantationOperatingBudget::query()->first();
-    expect($budget)->not->toBeNull()
-        ->and($budget->status)->toBe(PlantationOperatingBudgetStatus::SYNC_ERROR);
-});
-
-it('records plantation operating budget creation in the audit log', function () {
-    $business = activatePlantationBusiness();
-
-    actingAdmin()->post(route('admin.plantation-integrations.operating-budgets.store', $business), [
+    $payload = [
         'name' => 'Anggaran Operasional September',
         'period_start' => '2026-09-01',
         'period_end' => '2026-09-30',
-        'allocated_amount' => '50000000',
-    ]);
+        'allocated_amount' => 'Rp 50.000.000',
+    ];
+
+    actingAdmin()
+        ->get(adminOperatingBudgetsPath($business, 'create'))
+        ->assertNotFound();
+
+    actingAdmin()
+        ->post(adminOperatingBudgetsPath($business), $payload)
+        ->assertStatus(405);
+
+    expect(PlantationOperatingBudget::query()->count())->toBe(0);
+});
+
+it('does not let admin edit a plantation operating budget through hidden urls', function () {
+    $business = activatePlantationBusiness();
+    $budget = createPlantationOperatingBudget($business);
+
+    actingAdmin()
+        ->get(adminOperatingBudgetsPath($business, $budget->public_id.'/edit'))
+        ->assertNotFound();
+
+    actingAdmin()
+        ->put(adminOperatingBudgetsPath($business, $budget->public_id), [
+            'name' => 'Anggaran Diubah Admin',
+            'period_start' => '2026-10-01',
+            'period_end' => '2026-10-31',
+            'allocated_amount' => '1000000',
+        ])
+        ->assertNotFound();
+
+    expect($budget->fresh()->name)->toBe('Anggaran Operasional September')
+        ->and((float) $budget->fresh()->allocated_amount)->toBe(50_000_000.0)
+        ->and(PlantationOperatingBudget::query()->count())->toBe(1);
+});
+
+it('lets admin monitor existing plantation budgets without a create action', function () {
+    $business = activatePlantationBusiness();
+    $budget = createPlantationOperatingBudget($business);
+
+    actingAdmin()
+        ->get(route('admin.plantation-integrations.operating-budgets.index', $business))
+        ->assertOk()
+        ->assertSee($budget->name)
+        ->assertSee('Kirim ulang')
+        ->assertSee('dashboard Finance')
+        ->assertSee('Status sinkronisasi')
+        ->assertDontSee('Buat anggaran kebun')
+        ->assertDontSee('Buat dari control plane');
+});
+
+it('resends an existing plantation operating budget without creating a duplicate', function () {
+    $business = activatePlantationBusiness();
+    $budget = createPlantationOperatingBudget($business);
+
+    actingAdmin()
+        ->post(route('admin.plantation-integrations.operating-budgets.sync', [$business, $budget]))
+        ->assertRedirect(route('admin.plantation-integrations.operating-budgets.index', $business))
+        ->assertSessionHas('success');
+
+    actingAdmin()
+        ->post(route('admin.plantation-integrations.operating-budgets.sync', [$business, $budget]))
+        ->assertRedirect(route('admin.plantation-integrations.operating-budgets.index', $business));
+
+    expect(PlantationOperatingBudget::query()->count())->toBe(1)
+        ->and($budget->fresh()->public_id)->toBe($budget->public_id)
+        ->and($budget->fresh()->status)->toBe(PlantationOperatingBudgetStatus::ACTIVE);
+
+    $puts = collect(Http::recorded())
+        ->filter(function (array $pair) use ($budget) {
+            [$request] = $pair;
+            $path = parse_url($request->url(), PHP_URL_PATH) ?: '';
+
+            return $request->method() === 'PUT'
+                && str_ends_with($path, '/budget-allocations/'.$budget->public_id);
+        });
+
+    expect($puts->count())->toBeGreaterThanOrEqual(3);
+});
+
+it('records plantation operating budget creation in the audit log from the finance-owned service', function () {
+    $business = activatePlantationBusiness();
+    createPlantationOperatingBudget($business);
 
     $this->assertDatabaseHas('audit_logs', [
         'action' => AuditAction::PLANTATION_OPERATING_BUDGET_CREATED->value,
@@ -202,23 +186,21 @@ it('records plantation operating budget creation in the audit log', function () 
     ]);
 });
 
-it('requires an active plantation integration', function () {
+it('rejects a disconnected entity from the admin monitoring page', function () {
     $business = FinanceEntity::factory()->business()->create();
-    PlantationIntegration::query()->create([
-        'finance_entity_id' => $business->id,
-        'plantation_entity_public_id' => '01PLANTATIONENTITYTEST00001',
-        'status' => PlantationIntegrationStatus::INACTIVE,
-    ]);
 
     actingAdmin()
-        ->post(route('admin.plantation-integrations.operating-budgets.store', $business), [
+        ->get(route('admin.plantation-integrations.operating-budgets.index', $business))
+        ->assertRedirect(route('admin.plantation-integrations.index'));
+
+    actingAdmin()
+        ->post(adminOperatingBudgetsPath($business), [
             'name' => 'Anggaran Operasional September',
             'period_start' => '2026-09-01',
             'period_end' => '2026-09-30',
             'allocated_amount' => '50000000',
         ])
-        ->assertRedirect()
-        ->assertSessionHas('danger');
+        ->assertStatus(405);
 
     expect(PlantationOperatingBudget::query()->count())->toBe(0);
     Http::assertNothingSent();
