@@ -9,7 +9,6 @@ use App\Models\PlantationOperatingBudget;
 use App\Services\PlantationOperatingBudgetService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
-use InvalidArgumentException;
 use Throwable;
 
 class PlantationOperatingBudgetController extends Controller
@@ -67,10 +66,10 @@ class PlantationOperatingBudgetController extends Controller
 
     private function failed(Throwable $exception, string $redirectTo): RedirectResponse
     {
-        $message = $exception instanceof PlantationServiceException
-            || $exception instanceof InvalidArgumentException
-            ? $exception->getMessage()
-            : 'Terjadi kesalahan saat menghubungi Plantation Service.';
+        $message = PlantationServiceException::flashMessage(
+            $exception,
+            'Terjadi kesalahan saat sinkronisasi anggaran.',
+        );
 
         return redirect()
             ->to($redirectTo)

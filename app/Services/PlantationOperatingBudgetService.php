@@ -10,6 +10,7 @@ use App\Models\PlantationOperatingBudget;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
+use Throwable;
 
 class PlantationOperatingBudgetService
 {
@@ -53,7 +54,7 @@ class PlantationOperatingBudgetService
             return $budget;
         });
 
-        $this->push($budget->fresh() ?? $budget, AuditAction::PLANTATION_OPERATING_BUDGET_SYNCED);
+        $this->push($budget->fresh() ?? $budget, AuditAction::PLANTATION_OPERATING_BUDGET_SYNCED, operation: 'create');
 
         return $budget->fresh() ?? $budget;
     }
@@ -73,81 +74,107 @@ class PlantationOperatingBudgetService
             'period_end' => $budget->period_end?->toDateString(),
         ];
 
-        $this->pushToPlantation($budget, $data);
-
-        $budget->update([
-            'name' => $data['name'],
-            'period_start' => $data['period_start'],
-            'period_end' => $data['period_end'],
-            'allocated_amount' => $data['allocated_amount'],
-            'status' => PlantationOperatingBudgetStatus::ACTIVE,
-            'last_synced_at' => now(),
-            'last_error' => null,
-        ]);
-
-        $this->auditLogs->record(
+        return $this->push(
             $budget,
             AuditAction::PLANTATION_OPERATING_BUDGET_UPDATED,
-            $entity,
+            $data,
             $old,
-            [
-                'name' => $data['name'],
-                'allocated_amount' => (string) $data['allocated_amount'],
-                'period_start' => $data['period_start'],
-                'period_end' => $data['period_end'],
-            ],
+            'update',
         );
-
-        return $budget->fresh() ?? $budget;
     }
 
     public function sync(PlantationOperatingBudget $budget): PlantationOperatingBudget
     {
         $this->integrations->requireActiveIntegration($budget->financeEntity);
 
-        return $this->push($budget, AuditAction::PLANTATION_OPERATING_BUDGET_SYNCED);
+        return $this->push($budget, AuditAction::PLANTATION_OPERATING_BUDGET_SYNCED, operation: 'sync');
     }
 
-    private function push(PlantationOperatingBudget $budget, AuditAction $action): PlantationOperatingBudget
-    {
-        try {
-            $this->pushToPlantation($budget, [
-                'name' => $budget->name,
-                'period_start' => $budget->period_start?->toDateString(),
-                'period_end' => $budget->period_end?->toDateString(),
-                'allocated_amount' => (float) $budget->allocated_amount,
-            ]);
-        } catch (PlantationServiceException $exception) {
-            $budget->update([
-                'status' => PlantationOperatingBudgetStatus::SYNC_ERROR,
-                'last_error' => mb_substr($exception->getMessage(), 0, 500),
-            ]);
+    /**
+     * @param  array{name: string, period_start: ?string, period_end: ?string, allocated_amount: float}|null  $data
+     * @param  array<string, mixed>|null  $old
+     */
+    private function push(
+        PlantationOperatingBudget $budget,
+        AuditAction $action,
+        ?array $data = null,
+        ?array $old = null,
+        string $operation = 'sync',
+    ): PlantationOperatingBudget {
+        $payload = $data ?? [
+            'name' => $budget->name,
+            'period_start' => $budget->period_start?->toDateString(),
+            'period_end' => $budget->period_end?->toDateString(),
+            'allocated_amount' => (float) $budget->allocated_amount,
+        ];
 
+        try {
+            $this->pushToPlantation($budget, $payload);
+        } catch (PlantationServiceException $exception) {
             Log::warning('plantation.budget_sync_failed', [
+                'operation' => $operation,
                 'finance_entity_public_id' => $budget->financeEntity?->public_id,
                 'budget_public_id' => $budget->public_id,
                 'status' => $exception->status,
+                'error_type' => $exception->errorType,
             ]);
+
+            try {
+                $budget->update([
+                    'status' => PlantationOperatingBudgetStatus::SYNC_ERROR,
+                    'last_error' => mb_substr($exception->userMessage(), 0, 500),
+                ]);
+            } catch (Throwable $stateException) {
+                Log::warning('plantation.budget_sync_state_update_failed', [
+                    'finance_entity_public_id' => $budget->financeEntity?->public_id,
+                    'budget_public_id' => $budget->public_id,
+                    'exception_class' => $stateException::class,
+                ]);
+            }
 
             throw $exception;
         }
 
-        $budget->update([
+        $attributes = [
             'status' => PlantationOperatingBudgetStatus::ACTIVE,
             'last_synced_at' => now(),
             'last_error' => null,
-        ]);
+        ];
 
-        $this->auditLogs->record(
-            $budget,
-            $action,
-            $budget->financeEntity,
-            null,
-            [
-                'public_id' => $budget->public_id,
-                'status' => PlantationOperatingBudgetStatus::ACTIVE->value,
-            ],
-        );
+        if ($data !== null) {
+            $attributes['name'] = $data['name'];
+            $attributes['period_start'] = $data['period_start'];
+            $attributes['period_end'] = $data['period_end'];
+            $attributes['allocated_amount'] = $data['allocated_amount'];
+        }
+
+        $budget->update($attributes);
+
+        if ($action === AuditAction::PLANTATION_OPERATING_BUDGET_UPDATED && $data !== null) {
+            $this->auditLogs->record(
+                $budget,
+                $action,
+                $budget->financeEntity,
+                $old,
+                [
+                    'name' => $data['name'],
+                    'allocated_amount' => (string) $data['allocated_amount'],
+                    'period_start' => $data['period_start'],
+                    'period_end' => $data['period_end'],
+                ],
+            );
+        } else {
+            $this->auditLogs->record(
+                $budget,
+                $action,
+                $budget->financeEntity,
+                null,
+                [
+                    'public_id' => $budget->public_id,
+                    'status' => PlantationOperatingBudgetStatus::ACTIVE->value,
+                ],
+            );
+        }
 
         return $budget->fresh() ?? $budget;
     }

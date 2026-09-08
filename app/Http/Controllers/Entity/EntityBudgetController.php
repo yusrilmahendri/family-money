@@ -16,7 +16,6 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use InvalidArgumentException;
 use Throwable;
 
 class EntityBudgetController extends Controller
@@ -285,10 +284,10 @@ class EntityBudgetController extends Controller
 
     private function plantationFailed(Throwable $exception, FinanceEntity $financeEntity): RedirectResponse
     {
-        $message = $exception instanceof PlantationServiceException
-            || $exception instanceof InvalidArgumentException
-            ? $exception->getMessage()
-            : 'Terjadi kesalahan saat menghubungi Plantation Service.';
+        $message = PlantationServiceException::flashMessage(
+            $exception,
+            'Terjadi kesalahan saat sinkronisasi anggaran.',
+        );
 
         return redirect()
             ->route('entity.budgets.index', $financeEntity)

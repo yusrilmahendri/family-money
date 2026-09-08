@@ -10,8 +10,12 @@ use App\Models\PlantationOperatingBudget;
 use App\Services\FinanceAccountBalanceService;
 use App\Services\FinanceAccountService;
 use App\Services\FinanceEntityAccessTokenService;
+use App\Services\PlantationOperatingBudgetService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 uses(RefreshDatabase::class);
 
@@ -187,12 +191,18 @@ it('keeps the dashboard budget and marks sync error when plantation rejects the 
         'allocated_amount' => '50000000',
     ])
         ->assertRedirect(route('entity.budgets.index', $business))
-        ->assertSessionHas('danger');
+        ->assertSessionHas('danger', 'Data anggaran ditolak oleh Plantation Service.');
+
+    $danger = session('danger');
+    expect($danger)->not->toContain('menghubungi')
+        ->and($danger)->not->toContain('validation.required');
 
     $budget = PlantationOperatingBudget::query()->first();
     expect($budget)->not->toBeNull()
         ->and($budget->status)->toBe(PlantationOperatingBudgetStatus::SYNC_ERROR)
-        ->and($budget->last_error)->not->toBeEmpty()
+        ->and($budget->last_error)->toBe('Data anggaran ditolak oleh Plantation Service.')
+        ->and($budget->last_error)->not->toContain('validation.required')
+        ->and($budget->last_error)->not->toContain('menghubungi')
         ->and(Budget::query()->count())->toBe(0)
         ->and(app(FinanceAccountBalanceService::class)->balance($account->fresh()))->toBe($balanceBefore);
 
@@ -451,3 +461,258 @@ it('does not let one business edit another entity plantation budget', function (
     expect($budgetA->fresh()->name)->toBe('Anggaran A')
         ->and(PlantationOperatingBudget::query()->count())->toBe(1);
 });
+
+function seedEntityOperatingBudget(?object $state = null): array
+{
+    $state ??= newPlantationBudgetHttpState();
+    fakeControllablePlantationBudgetHttp($state);
+
+    $business = FinanceEntity::factory()->business()->create(['name' => 'Usaha Dashboard Anggaran']);
+    actingAdmin()->post(route('admin.plantation-integrations.activate', $business));
+    $business = $business->fresh();
+    grantOperatingBudgetAccess($business);
+
+    test()->post(route('entity.budgets.store', $business), [
+        'name' => 'Anggaran Operasional September',
+        'period_start' => '2026-09-01',
+        'period_end' => '2026-09-30',
+        'allocated_amount' => '50000000',
+    ])->assertRedirect();
+
+    $budget = PlantationOperatingBudget::query()
+        ->where('finance_entity_id', $business->id)
+        ->latest('id')
+        ->first();
+
+    expect($budget)->not->toBeNull();
+
+    return [$business, $budget, $state];
+}
+
+function collectPlantationLogWarnings(): \ArrayObject
+{
+    $logs = new \ArrayObject;
+    Log::listen(function (MessageLogged $event) use ($logs) {
+        if ($event->level === 'warning' && str_starts_with((string) $event->message, 'plantation.')) {
+            $logs[] = [
+                'message' => $event->message,
+                'context' => $event->context,
+            ];
+        }
+    });
+
+    return $logs;
+}
+
+function assertSafePlantationLogs(\ArrayObject $logs): void
+{
+    $dump = json_encode($logs->getArrayCopy(), JSON_UNESCAPED_UNICODE) ?: '';
+
+    expect($dump)->not->toContain('testing-plantation-service-token')
+        ->and($dump)->not->toContain('Authorization')
+        ->and($dump)->not->toContain('Bearer ');
+}
+
+it('classifies a 422 budget allocation without leaking raw validation messages', function () {
+    [$business, $budget, $state] = seedEntityOperatingBudget();
+    $logs = collectPlantationLogWarnings();
+
+    $state->status = 422;
+    $state->body = [
+        'errors' => [
+            'allocated_amount' => ['validation.required'],
+        ],
+    ];
+
+    $this->post(route('entity.budgets.operating.sync', [$business, $budget]))
+        ->assertRedirect(route('entity.budgets.index', $business))
+        ->assertSessionHas('danger', 'Data anggaran ditolak oleh Plantation Service.');
+
+    $danger = session('danger');
+    expect($danger)->not->toContain('menghubungi')
+        ->and($danger)->not->toContain('validation.required');
+
+    $fresh = $budget->fresh();
+    expect($fresh->status)->toBe(PlantationOperatingBudgetStatus::SYNC_ERROR)
+        ->and($fresh->last_error)->toBe('Data anggaran ditolak oleh Plantation Service.')
+        ->and($fresh->last_error)->not->toContain('validation.required');
+
+    $httpFailed = collect($logs->getArrayCopy())->firstWhere('message', 'plantation.http_failed');
+    $syncFailed = collect($logs->getArrayCopy())->firstWhere('message', 'plantation.budget_sync_failed');
+
+    expect($httpFailed)->not->toBeNull()
+        ->and($httpFailed['context']['operation'] ?? null)->toBe('budget_allocation.upsert')
+        ->and($httpFailed['context']['method'] ?? null)->toBe('PUT')
+        ->and($httpFailed['context']['path'] ?? null)->toBe('/api/internal/budget-allocations/'.$budget->public_id)
+        ->and($httpFailed['context']['status'] ?? null)->toBe(422)
+        ->and($httpFailed['context']['error_type'] ?? null)->toBe('validation')
+        ->and($httpFailed['context']['finance_entity_public_id'] ?? null)->toBe($business->public_id)
+        ->and($httpFailed['context']['budget_public_id'] ?? null)->toBe($budget->public_id)
+        ->and($httpFailed['context']['validation_errors']['allocated_amount'] ?? null)->toBe(['validation.required'])
+        ->and($syncFailed)->not->toBeNull()
+        ->and($syncFailed['context']['operation'] ?? null)->toBe('sync')
+        ->and($syncFailed['context']['finance_entity_public_id'] ?? null)->toBe($business->public_id)
+        ->and($syncFailed['context']['budget_public_id'] ?? null)->toBe($budget->public_id)
+        ->and($syncFailed['context']['status'] ?? null)->toBe(422)
+        ->and($syncFailed['context']['error_type'] ?? null)->toBe('validation');
+
+    assertSafePlantationLogs($logs);
+});
+
+it('maps plantation budget sync http failures to classified flash messages', function (int $status, string $expected) {
+    [$business, $budget, $state] = seedEntityOperatingBudget();
+    $state->status = $status;
+    $state->body = ['message' => 'The given data was invalid.'];
+
+    $this->post(route('entity.budgets.operating.sync', [$business, $budget]))
+        ->assertRedirect(route('entity.budgets.index', $business))
+        ->assertSessionHas('danger', $expected);
+
+    expect(session('danger'))->not->toContain('menghubungi')
+        ->and(session('danger'))->not->toContain('The given data was invalid.')
+        ->and($budget->fresh()->status)->toBe(PlantationOperatingBudgetStatus::SYNC_ERROR)
+        ->and($budget->fresh()->last_error)->toBe($expected);
+})->with([
+    [401, 'Autentikasi Plantation Service gagal.'],
+    [403, 'Autentikasi Plantation Service gagal.'],
+    [500, 'Plantation Service mengalami kesalahan.'],
+]);
+
+it('maps a plantation connection failure without calling it a generic contact error', function () {
+    [$business, $budget, $state] = seedEntityOperatingBudget();
+    $logs = collectPlantationLogWarnings();
+    $state->throw = new ConnectionException('Connection timed out');
+
+    $this->post(route('entity.budgets.operating.sync', [$business, $budget]))
+        ->assertRedirect(route('entity.budgets.index', $business))
+        ->assertSessionHas('danger', 'Plantation Service tidak dapat dihubungi.');
+
+    expect(session('danger'))->not->toContain('menghubungi')
+        ->and($budget->fresh()->status)->toBe(PlantationOperatingBudgetStatus::SYNC_ERROR)
+        ->and($budget->fresh()->last_error)->toBe('Plantation Service tidak dapat dihubungi.');
+
+    $httpFailed = collect($logs->getArrayCopy())->firstWhere('message', 'plantation.http_failed');
+    expect($httpFailed['context']['error_type'] ?? null)->toBe('connection')
+        ->and($httpFailed['context']['exception_class'] ?? null)->toBe(ConnectionException::class);
+
+    assertSafePlantationLogs($logs);
+});
+
+it('does not treat an unexpected http-layer throwable as a plantation connection error', function () {
+    [$business, $budget, $state] = seedEntityOperatingBudget();
+    $logs = collectPlantationLogWarnings();
+    $state->throw = new \RuntimeException('json_encode failed: testing-plantation-service-token');
+
+    $this->post(route('entity.budgets.operating.sync', [$business, $budget]))
+        ->assertRedirect(route('entity.budgets.index', $business))
+        ->assertSessionHas('danger', 'Terjadi kesalahan saat memproses integrasi Plantation Service.');
+
+    expect(session('danger'))->not->toBe('Plantation Service tidak dapat dihubungi.')
+        ->and(session('danger'))->not->toContain('json_encode')
+        ->and(session('danger'))->not->toContain('testing-plantation-service-token')
+        ->and($budget->fresh()->status)->toBe(PlantationOperatingBudgetStatus::SYNC_ERROR)
+        ->and($budget->fresh()->last_error)->toBe('Terjadi kesalahan saat memproses integrasi Plantation Service.');
+
+    $httpFailed = collect($logs->getArrayCopy())->firstWhere('message', 'plantation.http_failed');
+    $syncFailed = collect($logs->getArrayCopy())->firstWhere('message', 'plantation.budget_sync_failed');
+
+    expect($httpFailed)->not->toBeNull()
+        ->and($httpFailed['context']['operation'] ?? null)->toBe('budget_allocation.upsert')
+        ->and($httpFailed['context']['method'] ?? null)->toBe('PUT')
+        ->and($httpFailed['context']['path'] ?? null)->toBe('/api/internal/budget-allocations/'.$budget->public_id)
+        ->and($httpFailed['context']['status'] ?? null)->toBe(0)
+        ->and($httpFailed['context']['error_type'] ?? null)->toBe('client_error')
+        ->and($httpFailed['context']['exception_class'] ?? null)->toBe(\RuntimeException::class)
+        ->and($httpFailed['context']['finance_entity_public_id'] ?? null)->toBe($business->public_id)
+        ->and($httpFailed['context']['budget_public_id'] ?? null)->toBe($budget->public_id)
+        ->and($syncFailed['context']['error_type'] ?? null)->toBe('client_error');
+
+    assertSafePlantationLogs($logs);
+});
+
+it('does not treat an unexpected throwable as a plantation connection error', function () {
+    [$business, $budget] = seedEntityOperatingBudget();
+
+    $this->mock(PlantationOperatingBudgetService::class, function ($mock) {
+        $mock->shouldReceive('sync')->once()->andThrow(new \RuntimeException('disk full'));
+    });
+
+    $this->post(route('entity.budgets.operating.sync', [$business, $budget]))
+        ->assertRedirect(route('entity.budgets.index', $business))
+        ->assertSessionHas('danger', 'Terjadi kesalahan saat sinkronisasi anggaran.');
+
+    expect(session('danger'))->not->toContain('menghubungi');
+});
+
+it('marks an update as sync error when plantation rejects the payload', function () {
+    [$business, $budget, $state] = seedEntityOperatingBudget();
+    $logs = collectPlantationLogWarnings();
+    $state->status = 422;
+    $state->body = [
+        'errors' => [
+            'allocated_amount' => ['validation.required'],
+        ],
+    ];
+
+    $this->put(route('entity.budgets.operating.update', [$business, $budget]), [
+        'name' => 'Anggaran Operasional Oktober',
+        'period_start' => '2026-10-01',
+        'period_end' => '2026-10-31',
+        'allocated_amount' => 'Rp 60.000.000',
+    ])
+        ->assertRedirect(route('entity.budgets.index', $business))
+        ->assertSessionHas('danger', 'Data anggaran ditolak oleh Plantation Service.');
+
+    $fresh = $budget->fresh();
+    expect($fresh->status)->toBe(PlantationOperatingBudgetStatus::SYNC_ERROR)
+        ->and($fresh->name)->toBe('Anggaran Operasional September')
+        ->and((float) $fresh->allocated_amount)->toBe(50_000_000.0)
+        ->and($fresh->last_error)->toBe('Data anggaran ditolak oleh Plantation Service.')
+        ->and($fresh->last_error)->not->toContain('validation.required');
+
+    $syncFailed = collect($logs->getArrayCopy())->firstWhere('message', 'plantation.budget_sync_failed');
+    $httpFailed = collect($logs->getArrayCopy())->firstWhere('message', 'plantation.http_failed');
+
+    expect($syncFailed)->not->toBeNull()
+        ->and($syncFailed['context']['operation'] ?? null)->toBe('update')
+        ->and($syncFailed['context']['status'] ?? null)->toBe(422)
+        ->and($syncFailed['context']['error_type'] ?? null)->toBe('validation')
+        ->and($syncFailed['context']['budget_public_id'] ?? null)->toBe($budget->public_id)
+        ->and($httpFailed['context']['operation'] ?? null)->toBe('budget_allocation.upsert')
+        ->and($httpFailed['context']['error_type'] ?? null)->toBe('validation');
+
+    assertSafePlantationLogs($logs);
+});
+
+it('preserves the plantation failure when marking sync error cannot be saved', function () {
+    [$business, $budget, $state] = seedEntityOperatingBudget();
+    $logs = collectPlantationLogWarnings();
+    $state->status = 422;
+    $state->body = [
+        'errors' => [
+            'allocated_amount' => ['validation.required'],
+        ],
+    ];
+
+    PlantationOperatingBudget::saving(function (PlantationOperatingBudget $model): void {
+        if ($model->status === PlantationOperatingBudgetStatus::SYNC_ERROR) {
+            throw new \RuntimeException('status column locked');
+        }
+    });
+
+    $this->post(route('entity.budgets.operating.sync', [$business, $budget]))
+        ->assertRedirect(route('entity.budgets.index', $business))
+        ->assertSessionHas('danger', 'Data anggaran ditolak oleh Plantation Service.');
+
+    $syncFailed = collect($logs->getArrayCopy())->firstWhere('message', 'plantation.budget_sync_failed');
+    $stateFailed = collect($logs->getArrayCopy())->firstWhere('message', 'plantation.budget_sync_state_update_failed');
+
+    expect($syncFailed)->not->toBeNull()
+        ->and($stateFailed)->not->toBeNull()
+        ->and($stateFailed['context']['finance_entity_public_id'] ?? null)->toBe($business->public_id)
+        ->and($stateFailed['context']['budget_public_id'] ?? null)->toBe($budget->public_id)
+        ->and($stateFailed['context']['exception_class'] ?? null)->toBe(\RuntimeException::class);
+
+    assertSafePlantationLogs($logs);
+});
+

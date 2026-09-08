@@ -205,3 +205,63 @@ it('rejects a disconnected entity from the admin monitoring page', function () {
     expect(PlantationOperatingBudget::query()->count())->toBe(0);
     Http::assertNothingSent();
 });
+
+it('classifies admin budget resend failures without calling them connection errors', function (int $status, string $expected) {
+    $state = newPlantationBudgetHttpState();
+    fakeControllablePlantationBudgetHttp($state);
+
+    $business = FinanceEntity::factory()->business()->create(['name' => 'Usaha Anggaran Kebun']);
+    actingAdmin()->post(route('admin.plantation-integrations.activate', $business));
+    $budget = app(PlantationOperatingBudgetService::class)->create($business->fresh(), [
+        'name' => 'Anggaran Operasional September',
+        'period_start' => '2026-09-01',
+        'period_end' => '2026-09-30',
+        'allocated_amount' => 50_000_000.0,
+    ]);
+
+    $state->status = $status;
+    $state->body = [
+        'errors' => [
+            'allocated_amount' => ['validation.required'],
+        ],
+    ];
+
+    actingAdmin()
+        ->post(route('admin.plantation-integrations.operating-budgets.sync', [$business, $budget]))
+        ->assertRedirect(route('admin.plantation-integrations.operating-budgets.index', $business))
+        ->assertSessionHas('danger', $expected);
+
+    expect(session('danger'))->not->toContain('menghubungi')
+        ->and(session('danger'))->not->toContain('validation.required')
+        ->and($budget->fresh()->status)->toBe(PlantationOperatingBudgetStatus::SYNC_ERROR)
+        ->and($budget->fresh()->last_error)->toBe($expected);
+})->with([
+    [422, 'Data anggaran ditolak oleh Plantation Service.'],
+    [401, 'Autentikasi Plantation Service gagal.'],
+    [500, 'Plantation Service mengalami kesalahan.'],
+]);
+
+it('does not treat an unexpected admin budget sync throwable as a connection error', function () {
+    $state = newPlantationBudgetHttpState();
+    fakeControllablePlantationBudgetHttp($state);
+
+    $business = FinanceEntity::factory()->business()->create(['name' => 'Usaha Anggaran Kebun']);
+    actingAdmin()->post(route('admin.plantation-integrations.activate', $business));
+    $budget = app(PlantationOperatingBudgetService::class)->create($business->fresh(), [
+        'name' => 'Anggaran Operasional September',
+        'period_start' => '2026-09-01',
+        'period_end' => '2026-09-30',
+        'allocated_amount' => 50_000_000.0,
+    ]);
+
+    $this->mock(PlantationOperatingBudgetService::class, function ($mock) {
+        $mock->shouldReceive('sync')->once()->andThrow(new \RuntimeException('disk full'));
+    });
+
+    actingAdmin()
+        ->post(route('admin.plantation-integrations.operating-budgets.sync', [$business, $budget]))
+        ->assertRedirect(route('admin.plantation-integrations.operating-budgets.index', $business))
+        ->assertSessionHas('danger', 'Terjadi kesalahan saat sinkronisasi anggaran.');
+
+    expect(session('danger'))->not->toContain('menghubungi');
+});

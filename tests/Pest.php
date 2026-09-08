@@ -81,3 +81,45 @@ function portalFakeHandoff(string $accessUrl = PORTAL_PLANTATION_URL): void
         return Illuminate\Support\Facades\Http::response(['message' => 'Unexpected plantation request'], 500);
     });
 }
+
+function newPlantationBudgetHttpState(): object
+{
+    return (object) [
+        'status' => 200,
+        'body' => [
+            'data' => [
+                'public_id' => '01PLANTALLOCTEST000000001',
+                'status' => 'ACTIVE',
+            ],
+        ],
+        'throw' => null,
+    ];
+}
+
+function fakeControllablePlantationBudgetHttp(object $state): void
+{
+    Illuminate\Support\Facades\Http::fake(function (Illuminate\Http\Client\Request $request) use ($state) {
+        $path = parse_url($request->url(), PHP_URL_PATH) ?: '';
+        $method = $request->method();
+
+        if ($method === 'POST' && $path === '/api/internal/plantation-entities') {
+            return Illuminate\Support\Facades\Http::response([
+                'data' => [
+                    'public_id' => '01PLANTATIONENTITYTEST00001',
+                    'name' => $request['name'] ?? 'Kebun',
+                    'finance_entity_public_id' => $request['finance_entity_public_id'] ?? null,
+                ],
+            ], 201);
+        }
+
+        if ($method === 'PUT' && str_contains($path, '/budget-allocations/')) {
+            if ($state->throw instanceof Throwable) {
+                throw $state->throw;
+            }
+
+            return Illuminate\Support\Facades\Http::response($state->body, $state->status);
+        }
+
+        return Illuminate\Support\Facades\Http::response(['data' => ['ok' => true, 'is_active' => true]]);
+    });
+}

@@ -353,7 +353,7 @@ class PlantationIntegrationService
 
     private function safeError(PlantationServiceException $exception): string
     {
-        return mb_substr($exception->getMessage(), 0, 500);
+        return mb_substr($exception->userMessage(), 0, 500);
     }
 
     private function logSafe(FinanceEntity $entity, string $operation, PlantationServiceException $exception): void
@@ -362,6 +362,7 @@ class PlantationIntegrationService
             'operation' => $operation,
             'finance_entity_public_id' => $entity->public_id,
             'status' => $exception->status,
+            'error_type' => $exception->errorType,
         ]);
     }
 

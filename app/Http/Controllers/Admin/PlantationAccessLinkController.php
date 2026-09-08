@@ -9,7 +9,6 @@ use App\Models\FinanceEntity;
 use App\Services\PlantationIntegrationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
-use InvalidArgumentException;
 use Throwable;
 
 class PlantationAccessLinkController extends Controller
@@ -114,10 +113,10 @@ class PlantationAccessLinkController extends Controller
 
     private function failed(Throwable $exception, FinanceEntity $entity): RedirectResponse
     {
-        $message = $exception instanceof PlantationServiceException
-            || $exception instanceof InvalidArgumentException
-            ? $exception->getMessage()
-            : 'Terjadi kesalahan saat menghubungi Plantation Service.';
+        $message = PlantationServiceException::flashMessage(
+            $exception,
+            'Terjadi kesalahan pada layanan Plantation.',
+        );
 
         return redirect()
             ->route('admin.plantation-integrations.access-links.index', $entity)
