@@ -123,3 +123,27 @@ function fakeControllablePlantationBudgetHttp(object $state): void
         return Illuminate\Support\Facades\Http::response(['data' => ['ok' => true, 'is_active' => true]]);
     });
 }
+
+function collectPlantationLogWarnings(): \ArrayObject
+{
+    $logs = new \ArrayObject;
+    Illuminate\Support\Facades\Log::listen(function (Illuminate\Log\Events\MessageLogged $event) use ($logs) {
+        if ($event->level === 'warning' && str_starts_with((string) $event->message, 'plantation.')) {
+            $logs[] = [
+                'message' => $event->message,
+                'context' => $event->context,
+            ];
+        }
+    });
+
+    return $logs;
+}
+
+function assertSafePlantationLogs(\ArrayObject $logs): void
+{
+    $dump = json_encode($logs->getArrayCopy(), JSON_UNESCAPED_UNICODE) ?: '';
+
+    expect($dump)->not->toContain('testing-plantation-service-token')
+        ->and($dump)->not->toContain('Authorization')
+        ->and($dump)->not->toContain('Bearer ');
+}

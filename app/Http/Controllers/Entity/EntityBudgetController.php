@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Entity;
 
 use App\Exceptions\PlantationServiceException;
 use App\Http\Controllers\Concerns\AssignsFinanceAccount;
+use App\Http\Controllers\Concerns\LogsUnexpectedPlantationBudgetSync;
 use App\Http\Controllers\Concerns\RecordsAudit;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Entity\Concerns\ParsesRupiah;
@@ -20,7 +21,7 @@ use Throwable;
 
 class EntityBudgetController extends Controller
 {
-    use AssignsFinanceAccount, ParsesRupiah, RecordsAudit;
+    use AssignsFinanceAccount, LogsUnexpectedPlantationBudgetSync, ParsesRupiah, RecordsAudit;
 
     public function index(FinanceEntity $financeEntity): View
     {
@@ -187,7 +188,7 @@ class EntityBudgetController extends Controller
         try {
             $operatingBudgets->update($plantationOperatingBudget, $payload);
         } catch (Throwable $exception) {
-            return $this->plantationFailed($exception, $financeEntity);
+            return $this->plantationFailed($exception, $financeEntity, 'update', $plantationOperatingBudget);
         }
 
         return redirect()
@@ -205,7 +206,7 @@ class EntityBudgetController extends Controller
         try {
             $operatingBudgets->sync($plantationOperatingBudget);
         } catch (Throwable $exception) {
-            return $this->plantationFailed($exception, $financeEntity);
+            return $this->plantationFailed($exception, $financeEntity, 'sync', $plantationOperatingBudget);
         }
 
         return redirect()
@@ -231,7 +232,7 @@ class EntityBudgetController extends Controller
         try {
             $operatingBudgets->create($financeEntity, $payload);
         } catch (Throwable $exception) {
-            return $this->plantationFailed($exception, $financeEntity);
+            return $this->plantationFailed($exception, $financeEntity, 'create');
         }
 
         return redirect()
@@ -282,8 +283,14 @@ class EntityBudgetController extends Controller
             && ! $request->filled('category_id');
     }
 
-    private function plantationFailed(Throwable $exception, FinanceEntity $financeEntity): RedirectResponse
-    {
+    private function plantationFailed(
+        Throwable $exception,
+        FinanceEntity $financeEntity,
+        string $operation,
+        ?PlantationOperatingBudget $budget = null,
+    ): RedirectResponse {
+        $this->logUnexpectedPlantationBudgetSync($exception, $operation, $financeEntity, $budget);
+
         $message = PlantationServiceException::flashMessage(
             $exception,
             'Terjadi kesalahan saat sinkronisasi anggaran.',

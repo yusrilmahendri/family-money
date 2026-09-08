@@ -2,6 +2,7 @@
 
 use App\Enums\AuditAction;
 use App\Enums\PlantationOperatingBudgetStatus;
+use App\Http\Controllers\Admin\PlantationOperatingBudgetController;
 use App\Models\Budget;
 use App\Models\Category;
 use App\Models\FinanceEntity;
@@ -244,6 +245,7 @@ it('classifies admin budget resend failures without calling them connection erro
 it('does not treat an unexpected admin budget sync throwable as a connection error', function () {
     $state = newPlantationBudgetHttpState();
     fakeControllablePlantationBudgetHttp($state);
+    $logs = collectPlantationLogWarnings();
 
     $business = FinanceEntity::factory()->business()->create(['name' => 'Usaha Anggaran Kebun']);
     actingAdmin()->post(route('admin.plantation-integrations.activate', $business));
@@ -253,9 +255,12 @@ it('does not treat an unexpected admin budget sync throwable as a connection err
         'period_end' => '2026-09-30',
         'allocated_amount' => 50_000_000.0,
     ]);
+    $syncedAt = $budget->fresh()->last_synced_at?->toDateTimeString();
 
     $this->mock(PlantationOperatingBudgetService::class, function ($mock) {
-        $mock->shouldReceive('sync')->once()->andThrow(new \RuntimeException('disk full'));
+        $mock->shouldReceive('sync')->once()->andThrow(new \RuntimeException(
+            'Authorization: Bearer testing-plantation-service-token',
+        ));
     });
 
     actingAdmin()
@@ -263,5 +268,26 @@ it('does not treat an unexpected admin budget sync throwable as a connection err
         ->assertRedirect(route('admin.plantation-integrations.operating-budgets.index', $business))
         ->assertSessionHas('danger', 'Terjadi kesalahan saat sinkronisasi anggaran.');
 
-    expect(session('danger'))->not->toContain('menghubungi');
+    $fresh = $budget->fresh();
+    expect(session('danger'))->not->toContain('menghubungi')
+        ->and($fresh->status)->toBe(PlantationOperatingBudgetStatus::ACTIVE)
+        ->and($fresh->last_error)->toBeNull()
+        ->and($fresh->last_synced_at?->toDateTimeString())->toBe($syncedAt);
+
+    $unexpected = collect($logs->getArrayCopy())->firstWhere('message', 'plantation.budget_sync_unexpected_failed');
+
+    expect($unexpected)->not->toBeNull()
+        ->and($unexpected['context']['operation'] ?? null)->toBe('sync')
+        ->and($unexpected['context']['controller'] ?? null)->toBe(PlantationOperatingBudgetController::class)
+        ->and($unexpected['context']['exception_class'] ?? null)->toBe(\RuntimeException::class)
+        ->and($unexpected['context']['finance_entity_public_id'] ?? null)->toBe($business->public_id)
+        ->and($unexpected['context']['budget_public_id'] ?? null)->toBe($budget->public_id)
+        ->and($unexpected['context']['route_name'] ?? null)->toBe('admin.plantation-integrations.operating-budgets.sync')
+        ->and($unexpected['context'])->not->toHaveKey('exception_message')
+        ->and($unexpected['context'])->not->toHaveKey('exception')
+        ->and($unexpected['context'])->not->toHaveKey('trace')
+        ->and($unexpected['context']['file'] ?? null)->toBe(basename(__FILE__))
+        ->and($unexpected['context']['line'] ?? null)->toBeInt();
+
+    assertSafePlantationLogs($logs);
 });

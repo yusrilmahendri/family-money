@@ -13,9 +13,7 @@ use App\Services\FinanceEntityAccessTokenService;
 use App\Services\PlantationOperatingBudgetService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 uses(RefreshDatabase::class);
 
@@ -489,30 +487,6 @@ function seedEntityOperatingBudget(?object $state = null): array
     return [$business, $budget, $state];
 }
 
-function collectPlantationLogWarnings(): \ArrayObject
-{
-    $logs = new \ArrayObject;
-    Log::listen(function (MessageLogged $event) use ($logs) {
-        if ($event->level === 'warning' && str_starts_with((string) $event->message, 'plantation.')) {
-            $logs[] = [
-                'message' => $event->message,
-                'context' => $event->context,
-            ];
-        }
-    });
-
-    return $logs;
-}
-
-function assertSafePlantationLogs(\ArrayObject $logs): void
-{
-    $dump = json_encode($logs->getArrayCopy(), JSON_UNESCAPED_UNICODE) ?: '';
-
-    expect($dump)->not->toContain('testing-plantation-service-token')
-        ->and($dump)->not->toContain('Authorization')
-        ->and($dump)->not->toContain('Bearer ');
-}
-
 it('classifies a 422 budget allocation without leaking raw validation messages', function () {
     [$business, $budget, $state] = seedEntityOperatingBudget();
     $logs = collectPlantationLogWarnings();
@@ -632,16 +606,41 @@ it('does not treat an unexpected http-layer throwable as a plantation connection
 
 it('does not treat an unexpected throwable as a plantation connection error', function () {
     [$business, $budget] = seedEntityOperatingBudget();
+    $logs = collectPlantationLogWarnings();
+    $syncedAt = $budget->last_synced_at?->toDateTimeString();
 
     $this->mock(PlantationOperatingBudgetService::class, function ($mock) {
-        $mock->shouldReceive('sync')->once()->andThrow(new \RuntimeException('disk full'));
+        $mock->shouldReceive('sync')->once()->andThrow(new \RuntimeException(
+            'Authorization: Bearer testing-plantation-service-token',
+        ));
     });
 
     $this->post(route('entity.budgets.operating.sync', [$business, $budget]))
         ->assertRedirect(route('entity.budgets.index', $business))
         ->assertSessionHas('danger', 'Terjadi kesalahan saat sinkronisasi anggaran.');
 
-    expect(session('danger'))->not->toContain('menghubungi');
+    $fresh = $budget->fresh();
+    expect(session('danger'))->not->toContain('menghubungi')
+        ->and($fresh->status)->toBe(PlantationOperatingBudgetStatus::ACTIVE)
+        ->and($fresh->last_error)->toBeNull()
+        ->and($fresh->last_synced_at?->toDateTimeString())->toBe($syncedAt);
+
+    $unexpected = collect($logs->getArrayCopy())->firstWhere('message', 'plantation.budget_sync_unexpected_failed');
+
+    expect($unexpected)->not->toBeNull()
+        ->and($unexpected['context']['operation'] ?? null)->toBe('sync')
+        ->and($unexpected['context']['controller'] ?? null)->toBe(\App\Http\Controllers\Entity\EntityBudgetController::class)
+        ->and($unexpected['context']['exception_class'] ?? null)->toBe(\RuntimeException::class)
+        ->and($unexpected['context']['finance_entity_public_id'] ?? null)->toBe($business->public_id)
+        ->and($unexpected['context']['budget_public_id'] ?? null)->toBe($budget->public_id)
+        ->and($unexpected['context']['route_name'] ?? null)->toBe('entity.budgets.operating.sync')
+        ->and($unexpected['context'])->not->toHaveKey('exception_message')
+        ->and($unexpected['context'])->not->toHaveKey('exception')
+        ->and($unexpected['context'])->not->toHaveKey('trace')
+        ->and($unexpected['context']['file'] ?? null)->toBe(basename(__FILE__))
+        ->and($unexpected['context']['line'] ?? null)->toBeInt();
+
+    assertSafePlantationLogs($logs);
 });
 
 it('marks an update as sync error when plantation rejects the payload', function () {

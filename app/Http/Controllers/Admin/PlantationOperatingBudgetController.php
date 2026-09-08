@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Exceptions\PlantationServiceException;
+use App\Http\Controllers\Concerns\LogsUnexpectedPlantationBudgetSync;
 use App\Http\Controllers\Controller;
 use App\Models\FinanceEntity;
 use App\Models\PlantationOperatingBudget;
@@ -13,6 +14,8 @@ use Throwable;
 
 class PlantationOperatingBudgetController extends Controller
 {
+    use LogsUnexpectedPlantationBudgetSync;
+
     public function __construct(private readonly PlantationOperatingBudgetService $budgets) {}
 
     public function index(FinanceEntity $financeEntity): View|RedirectResponse
@@ -43,7 +46,7 @@ class PlantationOperatingBudgetController extends Controller
         try {
             $this->budgets->sync($operatingBudget);
         } catch (Throwable $exception) {
-            return $this->failed($exception, route('admin.plantation-integrations.operating-budgets.index', $financeEntity));
+            return $this->failed($exception, $financeEntity, $operatingBudget);
         }
 
         return redirect()
@@ -64,15 +67,20 @@ class PlantationOperatingBudgetController extends Controller
         return null;
     }
 
-    private function failed(Throwable $exception, string $redirectTo): RedirectResponse
-    {
+    private function failed(
+        Throwable $exception,
+        FinanceEntity $financeEntity,
+        PlantationOperatingBudget $operatingBudget,
+    ): RedirectResponse {
+        $this->logUnexpectedPlantationBudgetSync($exception, 'sync', $financeEntity, $operatingBudget);
+
         $message = PlantationServiceException::flashMessage(
             $exception,
             'Terjadi kesalahan saat sinkronisasi anggaran.',
         );
 
         return redirect()
-            ->to($redirectTo)
+            ->route('admin.plantation-integrations.operating-budgets.index', $financeEntity)
             ->with('danger', $message);
     }
 }
