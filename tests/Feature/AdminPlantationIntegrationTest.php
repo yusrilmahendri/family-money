@@ -182,6 +182,13 @@ it('calls the remote deactivate endpoint', function () {
         && str_ends_with(parse_url($request->url(), PHP_URL_PATH), '/deactivate'));
 
     expect($integration->fresh()->status)->toBe(PlantationIntegrationStatus::INACTIVE);
+
+    $stored = (string) DB::table('audit_logs')
+        ->where('action', AuditAction::PLANTATION_INTEGRATION_DEACTIVATED->value)
+        ->value('action');
+
+    expect($stored)->toBe(AuditAction::PLANTATION_INTEGRATION_DEACTIVATED->value)
+        ->and(strlen($stored))->toBe(34);
 });
 
 it('can reactivate a deactivated integration', function () {
@@ -305,6 +312,13 @@ it('shows a new link after regenerate', function () {
         ->post(route('admin.plantation-integrations.access-links.regenerate', [$business, 9]))
         ->assertOk()
         ->assertSee('http://plantation.test/access/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+
+    $stored = (string) DB::table('audit_logs')
+        ->where('action', AuditAction::PLANTATION_ACCESS_LINK_REGENERATED->value)
+        ->value('action');
+
+    expect($stored)->toBe(AuditAction::PLANTATION_ACCESS_LINK_REGENERATED->value)
+        ->and(strlen($stored))->toBe(34);
 });
 
 it('deletes an access link via the remote api', function () {

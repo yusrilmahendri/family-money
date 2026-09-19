@@ -1,8 +1,10 @@
 <?php
 
+use App\Enums\AuditAction;
 use App\Enums\FinanceAccountType;
 use App\Enums\PlantationIntegrationStatus;
 use App\Enums\PlantationOperatingBudgetStatus;
+use App\Models\AuditLog;
 use App\Models\Budget;
 use App\Models\FinanceEntity;
 use App\Models\PlantationIntegration;
@@ -11,8 +13,10 @@ use App\Services\FinanceAccountBalanceService;
 use App\Services\FinanceAccountService;
 use App\Services\FinanceEntityAccessTokenService;
 use App\Services\PlantationOperatingBudgetService;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
@@ -146,6 +150,133 @@ it('creates a plantation operating budget from the finance dashboard when planta
         ->assertSee('Ubah')
         ->assertSee('entity-table-responsive', false)
         ->assertDontSee('menambah saldo');
+});
+
+it('stores the full plantation operating budget audit actions after create update and sync', function () {
+    $business = activateEntityPlantationBusiness();
+    grantOperatingBudgetAccess($business);
+
+    $this->post(route('entity.budgets.store', $business), [
+        'name' => 'Anggaran Operasional September',
+        'period_start' => '2026-09-01',
+        'period_end' => '2026-09-30',
+        'allocated_amount' => '50000000',
+    ])
+        ->assertRedirect(route('entity.budgets.index', $business))
+        ->assertSessionHas('success');
+
+    $budget = PlantationOperatingBudget::query()->first();
+    expect($budget)->not->toBeNull();
+
+    $created = AuditLog::query()
+        ->where('auditable_type', $budget->getMorphClass())
+        ->where('auditable_id', $budget->id)
+        ->where('action', AuditAction::PLANTATION_OPERATING_BUDGET_CREATED)
+        ->first();
+    $syncedAfterCreate = AuditLog::query()
+        ->where('auditable_type', $budget->getMorphClass())
+        ->where('auditable_id', $budget->id)
+        ->where('action', AuditAction::PLANTATION_OPERATING_BUDGET_SYNCED)
+        ->count();
+
+    expect($created)->not->toBeNull()
+        ->and((string) DB::table('audit_logs')->where('id', $created->id)->value('action'))
+        ->toBe('PLANTATION_OPERATING_BUDGET_CREATED')
+        ->and(strlen((string) DB::table('audit_logs')->where('id', $created->id)->value('action')))->toBe(35)
+        ->and($syncedAfterCreate)->toBe(1)
+        ->and((string) DB::table('audit_logs')->where('action', 'PLANTATION_OPERATING_BUDGET_SYNCED')->value('action'))
+        ->toBe('PLANTATION_OPERATING_BUDGET_SYNCED');
+
+    $this->put(route('entity.budgets.operating.update', [$business, $budget]), [
+        'name' => 'Anggaran Operasional Oktober',
+        'period_start' => '2026-10-01',
+        'period_end' => '2026-10-31',
+        'allocated_amount' => 'Rp 60.000.000',
+    ])
+        ->assertRedirect(route('entity.budgets.index', $business))
+        ->assertSessionHas('success');
+
+    $updated = AuditLog::query()
+        ->where('auditable_type', $budget->getMorphClass())
+        ->where('auditable_id', $budget->id)
+        ->where('action', AuditAction::PLANTATION_OPERATING_BUDGET_UPDATED)
+        ->first();
+
+    expect($budget->fresh()->name)->toBe('Anggaran Operasional Oktober')
+        ->and($updated)->not->toBeNull()
+        ->and((string) DB::table('audit_logs')->where('id', $updated->id)->value('action'))
+        ->toBe('PLANTATION_OPERATING_BUDGET_UPDATED')
+        ->and(strlen((string) DB::table('audit_logs')->where('id', $updated->id)->value('action')))->toBe(35);
+
+    $this->post(route('entity.budgets.operating.sync', [$business, $budget]))
+        ->assertRedirect(route('entity.budgets.index', $business))
+        ->assertSessionHas('success');
+
+    expect($budget->fresh()->status)->toBe(PlantationOperatingBudgetStatus::ACTIVE)
+        ->and(AuditLog::query()
+            ->where('auditable_type', $budget->getMorphClass())
+            ->where('auditable_id', $budget->id)
+            ->where('action', AuditAction::PLANTATION_OPERATING_BUDGET_SYNCED)
+            ->count())->toBe(2)
+        ->and(AuditLog::query()
+            ->where('auditable_id', $budget->id)
+            ->whereIn('action', [
+                AuditAction::PLANTATION_OPERATING_BUDGET_CREATED,
+                AuditAction::PLANTATION_OPERATING_BUDGET_UPDATED,
+                AuditAction::PLANTATION_OPERATING_BUDGET_SYNCED,
+            ])
+            ->count())->toBe(4);
+});
+
+it('does not persist raw sql in unexpected budget create diagnostic logs', function () {
+    $business = activateEntityPlantationBusiness();
+    grantOperatingBudgetAccess($business);
+    $logs = collectPlantationLogWarnings();
+
+    $previous = new PDOException('SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column \'action\' at row 1');
+    $previous->errorInfo = ['22001', 1406, 'Data too long for column \'action\' at row 1'];
+
+    $this->mock(PlantationOperatingBudgetService::class, function ($mock) use ($previous) {
+        $mock->shouldReceive('create')->once()->andThrow(new QueryException(
+            'mysql',
+            'insert into `audit_logs` (`action`, `auditable_type`) values (?, ?)',
+            ['PLANTATION_OPERATING_BUDGET_CREATED', PlantationOperatingBudget::class],
+            $previous,
+        ));
+    });
+
+    $this->post(route('entity.budgets.store', $business), [
+        'name' => 'Anggaran Operasional September',
+        'period_start' => '2026-09-01',
+        'period_end' => '2026-09-30',
+        'allocated_amount' => '50000000',
+    ])
+        ->assertRedirect(route('entity.budgets.index', $business))
+        ->assertSessionHas('danger', 'Terjadi kesalahan saat sinkronisasi anggaran.');
+
+    $unexpected = collect($logs->getArrayCopy())->firstWhere('message', 'plantation.budget_sync_unexpected_failed');
+    $contextDump = json_encode($unexpected['context'] ?? [], JSON_UNESCAPED_UNICODE) ?: '';
+
+    expect($unexpected)->not->toBeNull()
+        ->and($unexpected['context']['operation'] ?? null)->toBe('create')
+        ->and($unexpected['context']['controller'] ?? null)->toBe(\App\Http\Controllers\Entity\EntityBudgetController::class)
+        ->and($unexpected['context']['exception_class'] ?? null)->toBe(QueryException::class)
+        ->and($unexpected['context']['sqlstate'] ?? null)->toBe('22001')
+        ->and($unexpected['context']['finance_entity_public_id'] ?? null)->toBe($business->public_id)
+        ->and($unexpected['context']['budget_public_id'] ?? null)->toBeNull()
+        ->and($unexpected['context']['route_name'] ?? null)->toBe('entity.budgets.store')
+        ->and($unexpected['context']['file'] ?? null)->toBeString()
+        ->and($unexpected['context']['line'] ?? null)->toBeInt()
+        ->and($unexpected['context'])->not->toHaveKey('exception_message')
+        ->and($unexpected['context'])->not->toHaveKey('exception')
+        ->and($unexpected['context'])->not->toHaveKey('trace')
+        ->and($unexpected['context'])->not->toHaveKey('sql')
+        ->and($unexpected['context'])->not->toHaveKey('bindings')
+        ->and($contextDump)->not->toContain('insert into')
+        ->and($contextDump)->not->toContain('SQLSTATE[')
+        ->and($contextDump)->not->toContain('audit_logs');
+
+    assertSafePlantationLogs($logs);
 });
 
 it('keeps the dashboard budget and marks sync error when plantation rejects the push', function () {

@@ -9,6 +9,7 @@ use App\Models\FinanceEntity;
 use App\Models\PlantationOperatingBudget;
 use App\Services\PlantationOperatingBudgetService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
@@ -185,6 +186,17 @@ it('records plantation operating budget creation in the audit log from the finan
         'action' => AuditAction::PLANTATION_OPERATING_BUDGET_CREATED->value,
         'finance_entity_id' => $business->id,
     ]);
+    $this->assertDatabaseHas('audit_logs', [
+        'action' => AuditAction::PLANTATION_OPERATING_BUDGET_SYNCED->value,
+        'finance_entity_id' => $business->id,
+    ]);
+
+    $created = (string) DB::table('audit_logs')
+        ->where('action', AuditAction::PLANTATION_OPERATING_BUDGET_CREATED->value)
+        ->value('action');
+
+    expect($created)->toBe('PLANTATION_OPERATING_BUDGET_CREATED')
+        ->and(strlen($created))->toBe(35);
 });
 
 it('rejects a disconnected entity from the admin monitoring page', function () {

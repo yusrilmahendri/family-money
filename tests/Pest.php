@@ -145,5 +145,7 @@ function assertSafePlantationLogs(\ArrayObject $logs): void
 
     expect($dump)->not->toContain('testing-plantation-service-token')
         ->and($dump)->not->toContain('Authorization')
-        ->and($dump)->not->toContain('Bearer ');
+        ->and($dump)->not->toContain('Bearer ')
+        ->and($dump)->not->toContain('insert into')
+        ->and($dump)->not->toContain('SQLSTATE[');
 }

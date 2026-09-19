@@ -26,6 +26,7 @@ use App\Support\FinanceEntityAccess;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
@@ -514,6 +515,40 @@ it('passes the read-only audit log check when rows are clean', function () {
         ->expectsOutputToContain('Audit Log Check')
         ->expectsOutputToContain('Audit logs look consistent.')
         ->assertSuccessful();
+});
+
+it('widens audit_logs.action enough to store every defined action without truncation', function () {
+    $column = collect(Schema::getColumns('audit_logs'))->firstWhere('name', 'action');
+
+    expect($column)->not->toBeNull()
+        ->and($column['type_name'] ?? $column['type'] ?? null)->toMatch('/varchar/i');
+
+    if (DB::getDriverName() !== 'sqlite') {
+        expect((string) ($column['type'] ?? ''))->toMatch('/varchar\s*\(\s*191\s*\)/i');
+    }
+
+    $longest = collect(AuditAction::cases())
+        ->sortByDesc(fn (AuditAction $action) => strlen($action->value))
+        ->first();
+
+    expect($longest)->not->toBeNull()
+        ->and(strlen($longest->value))->toBeLessThanOrEqual(191)
+        ->and(strlen(AuditAction::PLANTATION_OPERATING_BUDGET_CREATED->value))->toBe(35)
+        ->and(strlen(AuditAction::PLANTATION_OPERATING_BUDGET_UPDATED->value))->toBe(35)
+        ->and(strlen(AuditAction::PLANTATION_OPERATING_BUDGET_SYNCED->value))->toBe(34)
+        ->and(strlen(AuditAction::PLANTATION_INTEGRATION_DEACTIVATED->value))->toBe(34)
+        ->and(strlen(AuditAction::PLANTATION_ACCESS_LINK_REGENERATED->value))->toBe(34);
+
+    $entity = FinanceEntity::factory()->family()->create();
+    $audit = app(AuditLogService::class);
+
+    foreach (AuditAction::cases() as $action) {
+        $log = $audit->record($entity, $action, $entity);
+        $stored = (string) DB::table('audit_logs')->where('id', $log->id)->value('action');
+
+        expect($stored)->toBe($action->value)
+            ->and(strlen($stored))->toBe(strlen($action->value));
+    }
 });
 
 it('fails the audit log check for invalid actor, action, secrets, json, or entity', function () {
