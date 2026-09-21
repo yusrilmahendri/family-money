@@ -41,9 +41,25 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+function fundBusinessCash(\App\Models\FinanceEntity $entity, float $amount = 100_000_000): \App\Models\FinanceAccount
 {
-    // ..
+    $service = app(\App\Services\FinanceAccountService::class);
+    $account = $entity->accounts()->orderByDesc('is_default')->orderBy('id')->first();
+
+    if (! $account instanceof \App\Models\FinanceAccount) {
+        return $service->create($entity, [
+            'name' => $service->defaultNameFor($entity),
+            'type' => \App\Enums\FinanceAccountType::CASH,
+            'opening_balance' => $amount,
+            'is_default' => true,
+        ]);
+    }
+
+    if ((float) $account->opening_balance + 0.009 < $amount) {
+        $account->update(['opening_balance' => $amount]);
+    }
+
+    return $account->fresh();
 }
 
 const PORTAL_PLANTATION_TOKEN = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';

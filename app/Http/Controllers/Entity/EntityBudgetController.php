@@ -11,6 +11,7 @@ use App\Http\Controllers\Entity\Concerns\ParsesRupiah;
 use App\Models\Budget;
 use App\Models\FinanceEntity;
 use App\Models\PlantationOperatingBudget;
+use App\Services\BudgetAvailabilityService;
 use App\Services\PlantationOperatingBudgetService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,13 +24,14 @@ class EntityBudgetController extends Controller
 {
     use AssignsFinanceAccount, LogsUnexpectedPlantationBudgetSync, ParsesRupiah, RecordsAudit;
 
-    public function index(FinanceEntity $financeEntity): View
+    public function index(FinanceEntity $financeEntity, BudgetAvailabilityService $availability): View
     {
         $plantationActive = $financeEntity->hasActivePlantationIntegration();
 
         return view('entity.budgets.index', [
             'entity' => $financeEntity,
             'plantationActive' => $plantationActive,
+            'availability' => $availability->summary($financeEntity),
             'operatingBudgets' => $plantationActive
                 ? $financeEntity->plantationOperatingBudgets()
                     ->latest('period_start')
@@ -60,8 +62,12 @@ class EntityBudgetController extends Controller
         ]);
     }
 
-    public function store(Request $request, FinanceEntity $financeEntity, PlantationOperatingBudgetService $operatingBudgets): RedirectResponse
-    {
+    public function store(
+        Request $request,
+        FinanceEntity $financeEntity,
+        PlantationOperatingBudgetService $operatingBudgets,
+        BudgetAvailabilityService $availability,
+    ): RedirectResponse {
         if ($this->wantsPlantationOperatingBudget($request, $financeEntity)) {
             return $this->storePlantationOperatingBudget($request, $financeEntity, $operatingBudgets);
         }
@@ -74,14 +80,21 @@ class EntityBudgetController extends Controller
             'finance_entity_id' => ['prohibited'],
         ]);
 
-        $budget = $financeEntity->budgets()->create([
-            'category_id' => $validated['category_id'],
-            'amount' => $this->parseRupiah($validated['amount']),
-            'amount_saldo' => 0,
-            'periode' => $validated['periode'],
-            'description' => $validated['description'] ?? null,
-        ]);
-        $this->auditLogs()->recordCreated($budget, $financeEntity);
+        $amount = $this->parseRupiah($validated['amount']);
+        $availability->withEntityLock($financeEntity, function (FinanceEntity $entity) use ($validated, $amount, $availability): void {
+            if (! $availability->usesOperatingBudgetPagu($entity)) {
+                $availability->assertCanAllocate($entity, $amount, attribute: 'amount');
+            }
+
+            $created = $entity->budgets()->create([
+                'category_id' => $validated['category_id'],
+                'amount' => $amount,
+                'amount_saldo' => 0,
+                'periode' => $validated['periode'],
+                'description' => $validated['description'] ?? null,
+            ]);
+            $this->auditLogs()->recordCreated($created, $entity);
+        });
 
         return redirect()->route('entity.budgets.index', $financeEntity)->with('success', 'Anggaran disimpan.');
     }
@@ -111,8 +124,12 @@ class EntityBudgetController extends Controller
         ]);
     }
 
-    public function update(Request $request, FinanceEntity $financeEntity, Budget $budget): RedirectResponse
-    {
+    public function update(
+        Request $request,
+        FinanceEntity $financeEntity,
+        Budget $budget,
+        BudgetAvailabilityService $availability,
+    ): RedirectResponse {
         $this->owned($financeEntity, $budget);
         $validated = $request->validate([
             'amount' => $this->positiveRupiahRules(),
@@ -121,15 +138,22 @@ class EntityBudgetController extends Controller
             'description' => ['nullable', 'string', 'max:255'],
             'finance_entity_id' => ['prohibited'],
         ]);
-        $old = $this->auditLogs()->snapshot($budget);
+        $amount = $this->parseRupiah($validated['amount']);
 
-        $budget->update([
-            'category_id' => $validated['category_id'],
-            'amount' => $this->parseRupiah($validated['amount']),
-            'periode' => $validated['periode'],
-            'description' => $validated['description'] ?? null,
-        ]);
-        $this->auditLogs()->recordUpdated($budget->fresh(), $old, $financeEntity);
+        $availability->withEntityLock($financeEntity, function (FinanceEntity $entity) use ($budget, $validated, $amount, $availability): void {
+            if (! $availability->usesOperatingBudgetPagu($entity)) {
+                $availability->assertCanAllocate($entity, $amount, exceptCategory: $budget, attribute: 'amount');
+            }
+
+            $old = $this->auditLogs()->snapshot($budget);
+            $budget->update([
+                'category_id' => $validated['category_id'],
+                'amount' => $amount,
+                'periode' => $validated['periode'],
+                'description' => $validated['description'] ?? null,
+            ]);
+            $this->auditLogs()->recordUpdated($budget->fresh(), $old, $entity);
+        });
 
         return redirect()->route('entity.budgets.index', $financeEntity)->with('success', 'Anggaran diperbarui.');
     }
@@ -187,6 +211,8 @@ class EntityBudgetController extends Controller
 
         try {
             $operatingBudgets->update($plantationOperatingBudget, $payload);
+        } catch (ValidationException $exception) {
+            throw $exception;
         } catch (Throwable $exception) {
             return $this->plantationFailed($exception, $financeEntity, 'update', $plantationOperatingBudget);
         }
@@ -231,6 +257,8 @@ class EntityBudgetController extends Controller
 
         try {
             $operatingBudgets->create($financeEntity, $payload);
+        } catch (ValidationException $exception) {
+            throw $exception;
         } catch (Throwable $exception) {
             return $this->plantationFailed($exception, $financeEntity, 'create');
         }

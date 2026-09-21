@@ -99,7 +99,7 @@ it('transfers between accounts in the same entity without changing entity total 
 
     $this->get(route('entity.dashboard', $entity))
         ->assertOk()
-        ->assertSee('Total Saldo')
+        ->assertSee('Saldo Kas')
         ->assertSee('Rp 1.600.000')
         ->assertSee('Pemasukan')
         ->assertSee('Rp 500.000')

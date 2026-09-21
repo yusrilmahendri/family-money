@@ -23,6 +23,7 @@ class EntityReportService
         private readonly FinanceAccountBalanceService $balances,
         private readonly BusinessProfitService $profits,
         private readonly ReceivableService $receivables,
+        private readonly BudgetAvailabilityService $availability,
     ) {}
 
     /**
@@ -50,6 +51,7 @@ class EntityReportService
             'to' => $toDate,
             'period_label' => $this->profits->periodLabel($fromDate, $toDate),
             'balance_total' => $totals['balance'],
+            'availability' => $this->availability->summary($entity),
             'accounts' => $this->accountRows($summary['rows']),
             'cash_flow' => $flows,
             'piutang_outstanding' => $this->receivables->outstandingTotal($entity),
@@ -117,6 +119,8 @@ class EntityReportService
                 'prive' => $lifetime['business']['prive'],
                 'piutang_outstanding' => $lifetime['piutang_outstanding'],
                 'piutang_jatuh_tempo' => $lifetime['piutang_overdue'],
+                'reserved_remaining' => $lifetime['availability']['reserved_remaining'],
+                'available_balance' => $lifetime['availability']['available_balance'],
             ],
         ];
     }

@@ -16,6 +16,25 @@
         @endif
     </div>
 
+    <div class="entity-mini-metrics">
+        <div class="entity-mini-metric">
+            <span>Saldo Kas</span>
+            <strong>{{ rupiah($availability['cash_balance']) }}</strong>
+        </div>
+        <div class="entity-mini-metric">
+            <span>Dialokasikan</span>
+            <strong>{{ rupiah($availability['reserved_remaining']) }}</strong>
+        </div>
+        <div class="entity-mini-metric">
+            <span>Tersedia</span>
+            <strong>{{ rupiah($availability['available_balance']) }}</strong>
+        </div>
+    </div>
+    <p class="text-muted" style="font-size:13px; margin-top:-4px;">
+        Anggaran tidak mengurangi saldo kas aktual.
+        Dana yang dialokasikan mengurangi saldo tersedia sampai direalisasikan.
+    </p>
+
     @if($plantationActive)
         <div class="entity-table-responsive">
             <table class="table table-bordered entity-table entity-table--stackable">

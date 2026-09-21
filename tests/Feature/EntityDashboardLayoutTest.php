@@ -66,7 +66,7 @@ it('renders FAMILY and BUSINESS kpi cards as siblings in one auto-flow grid abov
         ->and($familyGrid)->not->toContain('class="row')
         ->and(substr_count($familyGrid, 'class="entity-stat"'))->toBe(10)
         ->and($businessGrid)->not->toContain('col-lg-3')
-        ->and(substr_count($businessGrid, 'class="entity-stat"'))->toBe(16);
+        ->and(substr_count($businessGrid, 'class="entity-stat"'))->toBe(18);
 
     $familyPage
         ->assertSeeInOrder([
@@ -83,7 +83,9 @@ it('renders FAMILY and BUSINESS kpi cards as siblings in one auto-flow grid abov
     $businessPage
         ->assertSeeInOrder([
             'entity-stat-grid',
-            'Total Saldo',
+            'Saldo Kas',
+            'Dana Dialokasikan',
+            'Saldo Tersedia',
             'Biaya operasional',
             'Laba / Rugi',
             'Insight Keuangan',

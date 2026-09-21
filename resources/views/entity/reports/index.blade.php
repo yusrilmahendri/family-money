@@ -24,6 +24,10 @@
 
     <div class="entity-mini-metrics">
         <div class="entity-mini-metric"><span>Total Saldo</span><strong>{{ rupiah($report['balance_total']) }}</strong></div>
+        @if($entity->isBusiness())
+            <div class="entity-mini-metric"><span>Dana Dialokasikan</span><strong>{{ rupiah($report['availability']['reserved_remaining']) }}</strong></div>
+            <div class="entity-mini-metric"><span>Saldo Tersedia</span><strong>{{ rupiah($report['availability']['available_balance']) }}</strong></div>
+        @endif
         <div class="entity-mini-metric"><span>Piutang outstanding</span><strong>{{ rupiah($report['piutang_outstanding']) }}</strong></div>
         <div class="entity-mini-metric"><span>Net cash periode</span><strong>{{ rupiah($report['cash_flow']['net_cash']) }}</strong></div>
     </div>

@@ -68,6 +68,7 @@ function activateEntityPlantationBusiness(): FinanceEntity
     fakeEntityPlantationBudgetHttp();
     $business = FinanceEntity::factory()->business()->create(['name' => 'Usaha Dashboard Anggaran']);
     actingAdmin()->post(route('admin.plantation-integrations.activate', $business));
+    fundBusinessCash($business->fresh());
 
     return $business->fresh();
 }
@@ -306,7 +307,7 @@ it('keeps the dashboard budget and marks sync error when plantation rejects the 
     });
 
     $business = FinanceEntity::factory()->business()->create();
-    $account = operatingBudgetCashAccount($business, 3_000_000);
+    $account = operatingBudgetCashAccount($business, 100_000_000);
     actingAdmin()->post(route('admin.plantation-integrations.activate', $business));
     $balanceBefore = app(FinanceAccountBalanceService::class)->balance($account->fresh());
 
@@ -599,6 +600,7 @@ function seedEntityOperatingBudget(?object $state = null): array
     $business = FinanceEntity::factory()->business()->create(['name' => 'Usaha Dashboard Anggaran']);
     actingAdmin()->post(route('admin.plantation-integrations.activate', $business));
     $business = $business->fresh();
+    fundBusinessCash($business);
     grantOperatingBudgetAccess($business);
 
     test()->post(route('entity.budgets.store', $business), [

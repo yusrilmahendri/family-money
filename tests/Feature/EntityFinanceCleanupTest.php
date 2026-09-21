@@ -41,7 +41,7 @@ it('does not create a saldos row when entity Income is stored', function () {
 
 it('adds Income to account balance and subtracts Transaction and BudgetActivity only', function () {
     $entity = FinanceEntity::factory()->business()->create();
-    $account = cashAccount($entity, 'Kas Operasi', 5_000_000);
+    $account = cashAccount($entity, 'Kas Operasi', 20_000_000);
     $category = Category::factory()->create([
         'finance_entity_id' => $entity->id,
         'context' => FinanceContext::USAHA_KEBUN,
@@ -55,7 +55,7 @@ it('adds Income to account balance and subtracts Transaction and BudgetActivity 
         'category_id' => $category->id,
         'finance_account_id' => $account->id,
     ])->assertRedirect();
-    expect(balanceService()->balance($account->fresh()))->toBe(5_500_000.0);
+    expect(balanceService()->balance($account->fresh()))->toBe(20_500_000.0);
 
     $this->post(route('entity.budgets.store', $entity), [
         'amount' => '10000000',
@@ -65,7 +65,7 @@ it('adds Income to account balance and subtracts Transaction and BudgetActivity 
     ])->assertRedirect();
 
     $budget = Budget::query()->where('finance_entity_id', $entity->id)->first();
-    expect(balanceService()->balance($account->fresh()))->toBe(5_500_000.0)
+    expect(balanceService()->balance($account->fresh()))->toBe(20_500_000.0)
         ->and($budget->plannedAmount())->toBe(10_000_000.0)
         ->and($budget->realizedAmount())->toBe(0.0)
         ->and($budget->remainingAmount())->toBe(10_000_000.0);
@@ -76,7 +76,7 @@ it('adds Income to account balance and subtracts Transaction and BudgetActivity 
         'category_id' => $category->id,
         'description' => 'Pupuk revisi',
     ])->assertRedirect();
-    expect(balanceService()->balance($account->fresh()))->toBe(5_500_000.0)
+    expect(balanceService()->balance($account->fresh()))->toBe(20_500_000.0)
         ->and($budget->fresh()->plannedAmount())->toBe(12_000_000.0);
 
     $this->post(route('entity.operational.store', $entity), [
@@ -88,7 +88,7 @@ it('adds Income to account balance and subtracts Transaction and BudgetActivity 
     ])->assertRedirect();
 
     $budget->refresh();
-    expect(balanceService()->balance($account->fresh()))->toBe(1_500_000.0)
+    expect(balanceService()->balance($account->fresh()))->toBe(16_500_000.0)
         ->and($budget->realizedAmount())->toBe(4_000_000.0)
         ->and($budget->remainingAmount())->toBe(8_000_000.0)
         ->and($budget->varianceAmount())->toBe(8_000_000.0);
@@ -200,7 +200,7 @@ it('keeps entity dashboard and reports independent from SaldoGlobalService', fun
     grantEntityAccess($business);
     $this->get(route('entity.dashboard', $business))
         ->assertOk()
-        ->assertSee('Total Saldo')
+        ->assertSee('Saldo Kas')
         ->assertSee('Rp 420.000')
         ->assertSee('Laba / Rugi')
         ->assertSee('Realisasi anggaran')

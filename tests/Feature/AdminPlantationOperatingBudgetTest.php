@@ -55,6 +55,7 @@ function activatePlantationBusiness(): FinanceEntity
     fakePlantationWithBudgets();
     $business = FinanceEntity::factory()->business()->create(['name' => 'Usaha Anggaran Kebun']);
     actingAdmin()->post(route('admin.plantation-integrations.activate', $business));
+    fundBusinessCash($business->fresh());
 
     return $business->fresh();
 }
@@ -225,6 +226,7 @@ it('classifies admin budget resend failures without calling them connection erro
 
     $business = FinanceEntity::factory()->business()->create(['name' => 'Usaha Anggaran Kebun']);
     actingAdmin()->post(route('admin.plantation-integrations.activate', $business));
+    fundBusinessCash($business->fresh());
     $budget = app(PlantationOperatingBudgetService::class)->create($business->fresh(), [
         'name' => 'Anggaran Operasional September',
         'period_start' => '2026-09-01',
@@ -261,6 +263,7 @@ it('does not treat an unexpected admin budget sync throwable as a connection err
 
     $business = FinanceEntity::factory()->business()->create(['name' => 'Usaha Anggaran Kebun']);
     actingAdmin()->post(route('admin.plantation-integrations.activate', $business));
+    fundBusinessCash($business->fresh());
     $budget = app(PlantationOperatingBudgetService::class)->create($business->fresh(), [
         'name' => 'Anggaran Operasional September',
         'period_start' => '2026-09-01',

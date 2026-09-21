@@ -212,6 +212,7 @@ it('isolates budgets debts savings goals and recurring transactions', function (
     grantEntityAccess($familyB);
     grantEntityAccess($businessA);
     grantEntityAccess($businessB);
+    fundBusinessCash($businessA, 5_000_000);
 
     $this->post(route('entity.debts.store', $familyA), [
         'title' => 'Hutang A',

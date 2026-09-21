@@ -40,9 +40,11 @@
         @include('entity.components.stat-card', [
             'icon' => 'fa-money',
             'tone' => 'blue',
-            'label' => 'Total Saldo',
+            'label' => $entity->isBusiness() ? 'Saldo Kas' : 'Total Saldo',
             'value' => $totalSaldo,
-            'hint' => 'Hanya Kas/Rekening aktif',
+            'hint' => $entity->isBusiness()
+                ? 'Saldo aktual Kas/Rekening aktif'
+                : 'Hanya Kas/Rekening aktif',
         ])
 
         @if($entity->isFamily())
@@ -56,6 +58,20 @@
             @include('entity.components.stat-card', ['icon' => 'fa-file-text-o', 'tone' => 'blue', 'label' => 'Total Piutang Outstanding', 'value' => $metrics['piutang_outstanding'], 'hint' => 'Sisa piutang'])
             @include('entity.components.stat-card', ['icon' => 'fa-clock-o', 'tone' => 'orange', 'label' => 'Piutang Jatuh Tempo', 'value' => $metrics['piutang_jatuh_tempo'], 'hint' => 'Piutang overdue'])
         @else
+            @include('entity.components.stat-card', [
+                'icon' => 'fa-lock',
+                'tone' => 'purple',
+                'label' => 'Dana Dialokasikan',
+                'value' => $metrics['reserved_remaining'],
+                'hint' => 'Sisa dana yang masih dicadangkan untuk anggaran',
+            ])
+            @include('entity.components.stat-card', [
+                'icon' => 'fa-unlock-alt',
+                'tone' => 'teal',
+                'label' => 'Saldo Tersedia',
+                'value' => $metrics['available_balance'],
+                'hint' => 'Dana yang belum terikat anggaran',
+            ])
             @include('entity.components.stat-card', ['icon' => 'fa-arrow-down', 'tone' => 'green', 'label' => 'Pemasukan', 'value' => $metrics['total_pemasukan'], 'hint' => 'Total revenue'])
             @include('entity.components.stat-card', ['icon' => 'fa-arrow-up', 'tone' => 'red', 'label' => 'Biaya operasional', 'value' => $metrics['total_biaya_operasional'], 'hint' => 'Biaya aktual'])
             @include('entity.components.stat-card', ['icon' => 'fa-balance-scale', 'tone' => $metrics['laba'] < 0 ? 'red' : 'green', 'label' => 'Laba / Rugi', 'value' => $metrics['laba'], 'hint' => $metrics['laba'] < 0 ? 'Rugi' : 'Laba usaha'])
@@ -219,7 +235,9 @@
                 Total Saldo = saldo awal + pemasukan + modal masuk + prive masuk + pembagian laba masuk + pembayaran piutang
                 − pengeluaran aktual − modal keluar − prive keluar − pembagian laba keluar.
                 Modal, prive, pembagian laba, dan pokok piutang yang belum dibayar bukan kas, revenue, atau laba.
-                Anggaran planned tidak mengurangi saldo sebelum ada realisasi.
+                Anggaran planned tidak mengurangi saldo kas aktual.
+                Dana dialokasikan = sisa pagu anggaran (planned − realisasi, minimum 0).
+                Saldo Tersedia = Saldo Kas − dana dialokasikan.
                 @if($entity->isBusiness())
                     Laba = pemasukan − biaya operasional aktual, bukan posisi kas, sisa anggaran, modal, prive, atau pembagian laba.
                     Saldo awal kas tidak masuk laba.

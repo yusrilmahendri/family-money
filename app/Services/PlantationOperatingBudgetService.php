@@ -18,6 +18,7 @@ class PlantationOperatingBudgetService
         private readonly PlantationServiceClient $client,
         private readonly PlantationIntegrationService $integrations,
         private readonly AuditLogService $auditLogs,
+        private readonly BudgetAvailabilityService $availability,
     ) {}
 
     /**
@@ -28,6 +29,9 @@ class PlantationOperatingBudgetService
         $this->integrations->requireActiveIntegration($entity);
 
         $budget = DB::transaction(function () use ($entity, $data): PlantationOperatingBudget {
+            $entity = $this->availability->lockEntity($entity);
+            $this->availability->assertCanAllocate($entity, (float) $data['allocated_amount']);
+
             $budget = PlantationOperatingBudget::query()->create([
                 'finance_entity_id' => $entity->id,
                 'name' => $data['name'],
@@ -67,12 +71,22 @@ class PlantationOperatingBudgetService
         $entity = $budget->financeEntity;
         $this->integrations->requireActiveIntegration($entity);
 
-        $old = [
-            'name' => $budget->name,
-            'allocated_amount' => (string) $budget->allocated_amount,
-            'period_start' => $budget->period_start?->toDateString(),
-            'period_end' => $budget->period_end?->toDateString(),
-        ];
+        $old = DB::transaction(function () use ($entity, $budget, $data): array {
+            $this->availability->lockEntity($entity);
+            $locked = PlantationOperatingBudget::query()->whereKey($budget->id)->lockForUpdate()->firstOrFail();
+            $this->availability->assertCanAllocate(
+                $entity,
+                (float) $data['allocated_amount'],
+                $locked,
+            );
+
+            return [
+                'name' => $locked->name,
+                'allocated_amount' => (string) $locked->allocated_amount,
+                'period_start' => $locked->period_start?->toDateString(),
+                'period_end' => $locked->period_end?->toDateString(),
+            ];
+        });
 
         return $this->push(
             $budget,
